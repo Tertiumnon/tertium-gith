@@ -18,6 +18,7 @@ const SPECS = new Map<string, Kind>([
   ["limit", "value"],
   ["message", "value"],
   ["name", "value"],
+  ["commit", "value"],
   ["days", "value"],
   ["patch", "switch"],
   ["minor", "switch"],

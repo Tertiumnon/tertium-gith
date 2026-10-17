@@ -3,6 +3,7 @@ import { exit } from "node:process";
 import { onlyOne, parseFlags } from "./args";
 import { create, merge } from "./commands";
 import { doctor } from "./doctor";
+import { find } from "./find";
 import { isDryRun, setDryRun, setVerbose } from "./git";
 import { save, squash, undo, update } from "./history";
 import { list } from "./list";
@@ -58,6 +59,7 @@ Look at the repo
   gith list --stashes [-l <n>]       stashes, newest first (default 5); --pockets shows them with Gorlum
   gith show ...                      same as gith list
   gith tree [-l <n>]                 working trees: path, branch, HEAD (current marked *)
+  gith find|search -commit <text> [-limit <n>]  commits on this branch whose message has the text (default 5)
   gith stat [period] [-limit <n>]    fun facts about this branch: biggest commit, busiest day, streaks
                                      period: --overall (default), --current-year|-month|-week, --last-year|-month|-week
 
@@ -127,6 +129,10 @@ try {
       break;
     case "squash":
       squash(parseFlags(rest));
+      break;
+    case "find":
+    case "search":
+      find(parseFlags(rest));
       break;
     case "stat":
       stat(parseFlags(rest));
