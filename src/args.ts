@@ -26,6 +26,9 @@ const SPECS = new Map<string, Modes>([
   ["tags", { single: "none", double: "none" }],
   ["commits", { single: "none", double: "none" }],
   ["limit", { single: "required", double: "required" }],
+  ["message", { single: "required", double: "required" }],
+  ["obsolete", { single: "none", double: "none" }],
+  ["graph", { single: "none", double: "none" }],
 ]);
 
 // Short forms, so `-b`, `-branch` and `--branch` mean the same flag.
@@ -34,6 +37,7 @@ const ALIASES = new Map<string, string>([
   ["r", "release"],
   ["h", "hotfix"],
   ["l", "limit"],
+  ["m", "message"],
 ]);
 
 // Accepts one or two leading dashes. Returns the canonical name and the dash style.

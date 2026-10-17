@@ -3,10 +3,13 @@ import { exit } from "node:process";
 import { onlyOne, parseFlags } from "./args";
 import { create, merge } from "./commands";
 import { isDryRun, setDryRun, setVerbose } from "./git";
+import { amend, undo, update } from "./history";
 import { setup } from "./hooks";
 import { list } from "./list";
 import { clean, remove, reset, switchBranch, sync } from "./maintenance";
 import { release } from "./release";
+import { stash, unstash } from "./stash";
+import { status } from "./status";
 import { tree } from "./tree";
 
 const USAGE = `gith - git helper: branch flow and everyday git commands
@@ -32,6 +35,12 @@ Usage:
   gith list --tags [-l <n>]  tags with a local and origin column (newest 5 by default)
   gith list --commits [-l <n>]  newest commits on this branch (default 5)
   -limit <n> (-l, --limit) caps any listing: list, and the remove picker (default: all)
+  gith status                show branch vs origin, and staged, unstaged and untracked counts
+  gith update                merge origin/develop into this work branch
+  gith undo                  undo the last commit, keep its changes staged (not if pushed)
+  gith amend                 add staged changes to the last commit, keep its message (not if pushed)
+  gith stash [-m <msg>]      stash changes, including untracked files
+  gith unstash               bring back the latest stash
   gith tree [-l <n>]         working trees of this repo: path, branch, HEAD (current marked *)
   gith sync                  fetch all remotes, tags, and prune stale refs
   gith clean                 remove untracked files and directories (keeps ignored)
@@ -81,6 +90,24 @@ try {
       break;
     case "list":
       list(parseFlags(rest));
+      break;
+    case "status":
+      status(parseFlags(rest));
+      break;
+    case "update":
+      update(parseFlags(rest));
+      break;
+    case "undo":
+      undo(parseFlags(rest));
+      break;
+    case "amend":
+      amend(parseFlags(rest));
+      break;
+    case "stash":
+      stash(parseFlags(rest));
+      break;
+    case "unstash":
+      unstash(parseFlags(rest));
       break;
     case "tree":
       tree(parseFlags(rest));
