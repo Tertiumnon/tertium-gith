@@ -18,3 +18,20 @@ export async function confirm(question: string): Promise<boolean> {
     rl.close();
   }
 }
+
+// Asks for a line of text. Needs a terminal. A dry run only says what it would ask, and answers
+// with a placeholder so the commands it prints still make sense.
+export async function ask(question: string): Promise<string> {
+  if (isDryRun()) {
+    console.log(`dry run: would ask: ${question}`);
+    return "<message>";
+  }
+  if (!process.stdin.isTTY)
+    throw new Error("needs a terminal to ask; pass -m <message>.");
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    return (await rl.question(question)).trim();
+  } finally {
+    rl.close();
+  }
+}

@@ -115,3 +115,41 @@ describe("save pushes only when origin has the branch and differs", () => {
     }
   }, 60_000);
 });
+
+describe("save on a branch with no commits of its own", () => {
+  test("never rewrites the base commit: asks for a message, refused without a terminal", () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "gith-save-fresh-"));
+    try {
+      const repo = fixture(tmp);
+      git(repo, ["switch", "-c", "fresh", "main"]);
+      const base = git(repo, ["rev-parse", "HEAD"]).stdout.trim();
+      fs.writeFileSync(path.join(repo, "a.txt"), "changed");
+      git(repo, ["add", "a.txt"]);
+      const result = gith(repo, ["save"]);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("needs a terminal to ask");
+      expect(git(repo, ["rev-parse", "HEAD"]).stdout.trim()).toBe(base);
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  }, 60_000);
+
+  test("-m commits the staged changes as a new commit on top of the base", () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "gith-save-msg-"));
+    try {
+      const repo = fixture(tmp);
+      git(repo, ["switch", "-c", "fresh", "main"]);
+      const base = git(repo, ["rev-parse", "HEAD"]).stdout.trim();
+      fs.writeFileSync(path.join(repo, "a.txt"), "changed");
+      git(repo, ["add", "a.txt"]);
+      expect(gith(repo, ["save", "-m", "first change"]).status).toBe(0);
+      expect(git(repo, ["log", "-1", "--format=%s"]).stdout.trim()).toBe(
+        "first change",
+      );
+      expect(git(repo, ["rev-parse", "HEAD^"]).stdout.trim()).toBe(base);
+      expect(git(repo, ["rev-parse", "main"]).stdout.trim()).toBe(base);
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  }, 60_000);
+});

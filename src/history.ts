@@ -1,6 +1,6 @@
 import { type Flags, parseLimit } from "./args";
 import { assertClean, capture, captureArgs, gitArgs, isDryRun } from "./git";
-import { confirm } from "./prompt";
+import { ask, confirm } from "./prompt";
 import { isContainer } from "./rules";
 
 function noFlags(flags: Flags, command: string): void {
@@ -53,6 +53,19 @@ export function undo(flags: Flags): void {
   gitArgs(["reset", "--soft", "HEAD~1"]);
 }
 
+// True when this branch has commits of its own: commits that origin's develop (or main) lacks.
+// Without one, HEAD belongs to the base branch, so save must not rewrite it.
+function hasOwnCommit(): boolean {
+  for (const base of ["origin/develop", "origin/main"]) {
+    try {
+      return captureArgs(["rev-list", "--count", `${base}..HEAD`]) !== "0";
+    } catch {
+      // This base does not exist here; try the next one.
+    }
+  }
+  return true;
+}
+
 // The commit origin has for this branch, or "" when origin has no such branch.
 function remoteSha(branch: string): string {
   return (
@@ -60,25 +73,31 @@ function remoteSha(branch: string): string {
   );
 }
 
-// gith save: folds the staged changes into the last commit, keeping its message. It pushes only
-// when origin already has this branch and its copy differs from the new commit: a plain push when
-// the commit moves forward, or --force-with-lease after rewriting a pushed commit (asks first).
+// gith save: with commits of its own, folds the staged changes into the last commit and keeps its
+// message (-m replaces it). Without them, creates a new commit, asking for its message unless -m is
+// given. It pushes only when origin already has this branch and its copy differs from the new
+// commit: a plain push when the commit moves forward, or --force-with-lease after rewriting a pushed
+// commit (asks first).
 export async function save(flags: Flags): Promise<void> {
-  noFlags(flags, "save");
+  const message = flags.get("message");
+  const extra = [...flags.keys()].filter((key) => key !== "message");
+  if (extra.length > 0) throw new Error("usage: gith save [-m <message>]");
   const branch = currentBranch();
   if (captureArgs(["diff", "--cached", "--name-only"]) === "") {
     throw new Error(
       "nothing staged; stage the changes to add to the last commit.",
     );
   }
+  const owned = hasOwnCommit();
   const pushed = captureArgs(["branch", "-r", "--contains", "HEAD"]) !== "";
+  const rewrite = owned && pushed;
   const remote = remoteSha(branch);
-  if (pushed && remote === "") {
+  if (rewrite && remote === "") {
     throw new Error(
       "HEAD is already on origin under another branch; changing it would need a force-push.",
     );
   }
-  if (pushed) {
+  if (rewrite) {
     const yes = await confirm(
       `HEAD is already on origin/${branch}. Save it and force-push ${branch}? [Y/n] `,
     );
@@ -87,7 +106,16 @@ export async function save(flags: Flags): Promise<void> {
       return;
     }
   }
-  gitArgs(["commit", "--amend", "--no-edit"]);
+  if (owned) {
+    gitArgs(
+      message
+        ? ["commit", "--amend", "-m", message]
+        : ["commit", "--amend", "--no-edit"],
+    );
+  } else {
+    const text = message ?? (await askMessage());
+    gitArgs(["commit", "-m", text]);
+  }
   if (remote === "") {
     console.log(`origin has no ${branch}; not pushed.`);
     return;
@@ -96,8 +124,16 @@ export async function save(flags: Flags): Promise<void> {
     console.log("origin already has this commit; not pushed.");
     return;
   }
-  if (pushed) gitArgs(["push", "--force-with-lease", "origin", branch]);
+  if (rewrite) gitArgs(["push", "--force-with-lease", "origin", branch]);
   else gitArgs(["push", "origin", branch]);
+}
+
+// Asks for a commit message. An empty answer is refused, so a commit never has no message.
+async function askMessage(): Promise<string> {
+  const text = await ask("Commit message: ");
+  if (text === "")
+    throw new Error("a commit needs a message; nothing was committed.");
+  return text;
 }
 
 // gith squash -limit <n> [-m <message>]: combines the last n commits into one. Without -m the

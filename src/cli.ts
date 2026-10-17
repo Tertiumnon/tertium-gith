@@ -29,7 +29,7 @@ Start and finish work
 
 Fix history
   gith undo                          undo the last commit, keep its changes staged (not if pushed)
-  gith save                          fold staged changes into the last commit; pushes if origin has this branch and differs (asks before a force-push)
+  gith save [-m <msg>]               fold staged changes into the last commit, or commit them if the branch has none yet (asks for a message); pushes if origin differs (asks before a force-push)
   gith squash -limit <n> [-m <msg>]  combine the last n commits into one (keeps the oldest message)
 
 Save and reset work
