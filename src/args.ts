@@ -95,6 +95,17 @@ export function parseLimit(flags: Flags): number | undefined {
   return Number(raw);
 }
 
+// How a flag is written in a message: value flags take one dash, switches and auto flags two.
+const SHORT: Record<string, string> = {
+  branch: "-b",
+  release: "-r",
+  hotfix: "-h",
+};
+function spelling(name: string): string {
+  if (SPECS.get(name) === "value") return `-${name}`;
+  return SHORT[name] ?? `--${name}`;
+}
+
 // Returns the one flag from `names` that is present, or undefined if none is.
 export function onlyOne<T extends string>(
   flags: Flags,
@@ -102,9 +113,7 @@ export function onlyOne<T extends string>(
 ): T | undefined {
   const present = names.filter((name) => flags.has(name));
   if (present.length > 1) {
-    throw new Error(
-      `use only one of: ${names.map((n) => `--${n}`).join(", ")}.`,
-    );
+    throw new Error(`use only one of: ${names.map(spelling).join(", ")}.`);
   }
   return present[0];
 }
