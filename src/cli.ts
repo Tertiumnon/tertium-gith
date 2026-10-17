@@ -41,7 +41,7 @@ Usage:
   gith status                show branch vs origin, and staged, unstaged and untracked counts
   gith update                merge origin/develop into this work branch
   gith undo                  undo the last commit, keep its changes staged (not if pushed)
-  gith amend                 add staged changes to the last commit, keep its message (not if pushed)
+  gith amend                 add staged changes to the last commit, keep its message (if pushed: asks, then force-pushes)
   gith stash [-n <name>]     stash changes, including untracked files
   gith squash -count <n> [-m <msg>]  combine the last n commits into one (keeps the oldest message)
   gith unstash               bring back the latest stash
@@ -106,7 +106,7 @@ try {
       undo(parseFlags(rest));
       break;
     case "amend":
-      amend(parseFlags(rest));
+      await amend(parseFlags(rest));
       break;
     case "squash":
       squash(parseFlags(rest));

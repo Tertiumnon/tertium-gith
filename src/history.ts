@@ -1,5 +1,13 @@
 import type { Flags } from "./args";
-import { assertClean, capture, captureArgs, gitArgs, isDryRun } from "./git";
+import {
+  assertClean,
+  capture,
+  captureArgs,
+  gitArgs,
+  hasOnOrigin,
+  isDryRun,
+} from "./git";
+import { confirm } from "./prompt";
 import { isContainer } from "./rules";
 
 function noFlags(flags: Flags, command: string): void {
@@ -53,16 +61,34 @@ export function undo(flags: Flags): void {
 }
 
 // gith amend: folds the staged changes into the last commit, keeping its message.
-export function amend(flags: Flags): void {
+// gith amend: folds the staged changes into the last commit. If that commit is already on this
+// branch's origin copy, it asks first, then force-pushes with --force-with-lease, which refuses if
+// origin moved since the last fetch.
+export async function amend(flags: Flags): Promise<void> {
   noFlags(flags, "amend");
-  currentBranch();
-  assertNotPushed();
+  const branch = currentBranch();
   if (captureArgs(["diff", "--cached", "--name-only"]) === "") {
     throw new Error(
       "nothing staged; stage the changes to add to the last commit.",
     );
   }
+  const pushed = captureArgs(["branch", "-r", "--contains", "HEAD"]) !== "";
+  if (pushed && !hasOnOrigin(branch)) {
+    throw new Error(
+      "HEAD is already on origin under another branch; changing it would need a force-push.",
+    );
+  }
+  if (pushed) {
+    const yes = await confirm(
+      `HEAD is already on origin/${branch}. Amend it and force-push ${branch}? [Y/n] `,
+    );
+    if (!yes) {
+      console.log("amend cancelled; nothing changed.");
+      return;
+    }
+  }
   gitArgs(["commit", "--amend", "--no-edit"]);
+  if (pushed) gitArgs(["push", "--force-with-lease", "origin", branch]);
 }
 
 // gith squash -count <n> [-m <message>]: combines the last n commits into one. Without -m the
