@@ -138,7 +138,7 @@ describe("gith list --commits", () => {
       expect(cli(repo, ["list", "--commits", "-l", "0"]).status).toBe(1);
       expect(cli(repo, ["list", "--commits", "-l", "x"]).status).toBe(1);
       expect(cli(repo, ["list", "--commits", "-l"]).status).toBe(1);
-      expect(cli(repo, ["list", "--tags", "-l", "2"]).status).toBe(1);
+      expect(cli(repo, ["list", "--tags", "-l", "0"]).status).toBe(1);
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });
     }
@@ -151,6 +151,49 @@ describe("gith list --commits", () => {
       );
     } finally {
       fs.rmSync(empty, { recursive: true, force: true });
+    }
+  }, 60_000);
+});
+
+describe("-limit on tags", () => {
+  test("list --tags shows the newest five by default, and -limit changes that", () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "gith-tag-limit-"));
+    try {
+      const repo = path.join(tmp, "repo");
+      fs.mkdirSync(repo);
+      git(tmp, ["init", "--bare", path.join(tmp, "remote.git")]);
+      git(repo, ["init", "-b", "main"]);
+      git(repo, ["config", "user.email", "test@example.com"]);
+      git(repo, ["config", "user.name", "Test"]);
+      fs.writeFileSync(path.join(repo, "a.txt"), "a");
+      git(repo, ["add", "."]);
+      git(repo, ["commit", "-m", "initial"]);
+      git(repo, ["remote", "add", "origin", "../remote.git"]);
+      git(repo, ["push", "-u", "origin", "main"]);
+      for (let i = 1; i <= 7; i++) git(repo, ["tag", `v1.${i}.0`]);
+
+      const run = (args: string[]) =>
+        spawnSync(process.execPath, [CLI, ...args], {
+          cwd: repo,
+          encoding: "utf8",
+        }).stdout;
+
+      const five = run(["list", "--tags"]).trim().split("\n");
+      expect(five).toHaveLength(7); // header, five rows, note
+      expect(five[1]).toContain("v1.7.0");
+      expect(five[five.length - 1]).toBe(
+        "showing 5 of 7; -limit <n> shows more",
+      );
+
+      const two = run(["list", "--tags", "-limit", "2"]).trim().split("\n");
+      expect(two).toHaveLength(4); // header, two rows, note
+      expect(two[1]).toContain("v1.7.0");
+
+      expect(
+        run(["list", "--tags", "-l", "10"]).trim().split("\n"),
+      ).toHaveLength(8);
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
     }
   }, 60_000);
 });

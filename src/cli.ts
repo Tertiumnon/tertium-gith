@@ -24,12 +24,13 @@ Usage:
   gith release --major         bump the major version, from develop into main
   gith switch -b <branch>    switch to a branch, creating it from develop if missing
   gith remove -b <branch>    delete a merged local branch (git branch -d)
-  gith remove -b             list local branches and pick which to delete
+  gith remove -b [-l <n>]    list local branches and pick which to delete
   gith remove -b [<branch>] --remote   also delete on origin; no name lists origin branches
   gith remove -b [<branch>] --both     delete locally, then on origin; no name lists pairs
   gith rm                    alias of remove
-  gith list --tags           list tags with a local and origin column
+  gith list --tags [-l <n>]  tags with a local and origin column (newest 5 by default)
   gith list --commits [-l <n>]  newest commits on this branch (default 5)
+  -limit <n> (-l, --limit) caps any listing: list, and the remove picker (default: all)
   gith sync                  fetch all remotes, tags, and prune stale refs
   gith clean                 remove untracked files and directories (keeps ignored)
   gith reset                 discard uncommitted changes and untracked files (hard reset + clean)

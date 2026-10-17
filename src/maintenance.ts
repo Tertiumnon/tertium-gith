@@ -1,5 +1,5 @@
 import { createInterface } from "node:readline/promises";
-import { type Flags, onlyOne } from "./args";
+import { type Flags, onlyOne, parseLimit } from "./args";
 import { createBranch } from "./commands";
 import {
   assertBranchName,
@@ -105,8 +105,8 @@ function remoteBranches(): string[] {
     .map((line) => (line.split("\t")[1] ?? "").replace(/^refs\/heads\//, ""));
 }
 
-// Lists the candidates and reads which ones to remove.
-async function pick(scope: Scope): Promise<string[]> {
+// Lists the candidates (the first `limit`, or all) and reads which ones to remove.
+async function pick(scope: Scope, limit?: number): Promise<string[]> {
   const remote = scope === "local" ? [] : remoteBranches();
   const options = candidates(
     scope,
@@ -118,21 +118,27 @@ async function pick(scope: Scope): Promise<string[]> {
     console.log("No branches to remove.");
     return [];
   }
+  const shown = limit === undefined ? options : options.slice(0, limit);
   if (!process.stdin.isTTY) {
     throw new Error(
       "pass a branch name with -b, e.g. gith remove -b <branch>; the list needs a terminal",
     );
   }
-  for (const [i, option] of options.entries()) {
+  for (const [i, option] of shown.entries()) {
     console.log(`  ${i + 1}. ${option.label}`);
+  }
+  if (shown.length < options.length) {
+    console.log(
+      `showing ${shown.length} of ${options.length}; -limit <n> shows more`,
+    );
   }
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   try {
     const answer = await rl.question(
       "Remove which? Numbers or ranges, e.g. 1,3-4 (empty cancels): ",
     );
-    return parseSelection(answer, options.length).map(
-      (i) => options[i]?.name ?? "",
+    return parseSelection(answer, shown.length).map(
+      (i) => shown[i]?.name ?? "",
     );
   } finally {
     rl.close();
@@ -157,13 +163,17 @@ export async function remove(flags: Flags): Promise<void> {
   const scope: Scope = picked ?? "local";
 
   if (name) {
+    if (flags.has("limit"))
+      throw new Error(
+        "-limit only applies to listings: gith remove -b with no name.",
+      );
     assertBranchName(name);
     if (isContainer(name))
       throw new Error(`'${name}' is a container and cannot be removed.`);
     removeBranches(scope, [name]);
     return;
   }
-  removeBranches(scope, await pick(scope));
+  removeBranches(scope, await pick(scope, parseLimit(flags)));
 }
 
 // gith sync: fetches every remote with tags, pruning deleted refs.

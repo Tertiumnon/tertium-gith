@@ -1,8 +1,8 @@
-import { type Flags, onlyOne } from "./args";
+import { type Flags, onlyOne, parseLimit } from "./args";
 import { captureArgs } from "./git";
 import { compare, parseSemver } from "./versions";
 
-const DEFAULT_LIMIT = "5";
+const DEFAULT_LIMIT = 5;
 
 export interface TagPair {
   name: string;
@@ -46,23 +46,18 @@ function yesNo(value: boolean): string {
   return value ? "yes" : "no";
 }
 
-// gith list --tags: one row per tag, showing whether it exists locally and on origin.
+// gith list --tags | --commits, showing the first -limit rows (default 5).
 export function list(flags: Flags): void {
   const kind = onlyOne(flags, ["tags", "commits"]);
   if (!kind)
     throw new Error("usage: gith list --tags | --commits [-limit <n>]");
-  if (kind === "commits") {
-    commits(flags.get("limit") ?? DEFAULT_LIMIT);
-    return;
-  }
-  if (flags.has("limit")) throw new Error("-limit only applies to --commits.");
-  tags();
+  const limit = parseLimit(flags) ?? DEFAULT_LIMIT;
+  if (kind === "commits") commits(limit);
+  else tags(limit);
 }
 
-// gith list --commits: newest first, from the current branch.
-function commits(limit: string): void {
-  if (!/^[1-9]\d*$/.test(limit))
-    throw new Error("-limit needs a positive whole number.");
+// Newest first, from the current branch.
+function commits(limit: number): void {
   if (!hasHead()) {
     console.log("No commits.");
     return;
@@ -87,20 +82,27 @@ function hasHead(): boolean {
   }
 }
 
-function tags(): void {
+// One row per tag, newest version first, with whether it exists locally and on origin.
+function tags(limit: number): void {
   const pairs = tagPairs(localTags(), originTags());
   if (pairs.length === 0) {
     console.log("No tags.");
     return;
   }
+  const shown = pairs.slice(0, limit);
   const width = Math.max(
     "TAG".length,
     ...pairs.map((pair) => pair.name.length),
   );
   console.log(`${"TAG".padEnd(width)}  LOCAL  ORIGIN`);
-  for (const pair of pairs) {
+  for (const pair of shown) {
     console.log(
       `${pair.name.padEnd(width)}  ${yesNo(pair.local).padEnd(5)}  ${yesNo(pair.origin)}`,
+    );
+  }
+  if (shown.length < pairs.length) {
+    console.log(
+      `showing ${shown.length} of ${pairs.length}; -limit <n> shows more`,
     );
   }
 }

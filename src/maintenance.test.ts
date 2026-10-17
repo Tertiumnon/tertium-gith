@@ -75,6 +75,9 @@ describe("gith switch, remove, sync, clean", () => {
       expect(
         gith(repo, ["remove", "-b", "x", "--remote", "--both"]).status,
       ).toBe(1);
+      expect(gith(repo, ["remove", "-b", "main", "-limit", "2"]).status).toBe(
+        1,
+      );
 
       // unmerged branches are refused by git branch -d
       git(repo, ["checkout", "-b", "unmerged"]);
