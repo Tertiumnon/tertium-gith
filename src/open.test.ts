@@ -17,8 +17,8 @@ function gith(cwd: string, args: string[]) {
 
 describe("webUrl", () => {
   test("turns ssh and https origins into the web address", () => {
-    expect(webUrl("git@github.com:Tertiumnon/tertium-gf.git")).toBe(
-      "https://github.com/Tertiumnon/tertium-gf",
+    expect(webUrl("git@github.com:Tertiumnon/tertium-gith.git")).toBe(
+      "https://github.com/Tertiumnon/tertium-gith",
     );
     expect(webUrl("ssh://git@gitlab.com/team/app.git")).toBe(
       "https://gitlab.com/team/app",
