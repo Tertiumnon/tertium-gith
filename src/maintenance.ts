@@ -10,6 +10,7 @@ import {
   hasOnOrigin,
   isDryRun,
 } from "./git";
+import { confirm } from "./prompt";
 import { isContainer } from "./rules";
 
 // pair: the local branch and its origin copy together (the default). local or remote: one side only.
@@ -107,18 +108,79 @@ function remoteBranches(): string[] {
     .map((line) => (line.split("\t")[1] ?? "").replace(/^refs\/heads\//, ""));
 }
 
-// Local branches whose origin copy was deleted. After `fetch --prune`, git marks their
-// upstream as [gone]. Containers and the checked-out branch are never offered.
-export function obsoleteOf(forEachRef: string, current: string): Option[] {
-  return forEachRef
-    .split("\n")
-    .filter(Boolean)
-    .map((line) => {
-      const [name = "", track = ""] = line.split("|");
-      return { name, gone: track.includes("[gone]") };
-    })
-    .filter(({ name, gone }) => gone && name !== current && !isContainer(name))
-    .map(({ name }) => ({ name, label: `${name}  (origin deleted)` }));
+// The newest commit time on each side of a branch, in unix seconds.
+export interface Sides {
+  local?: number;
+  origin?: number;
+}
+
+// Reads `for-each-ref --format=%(refname)|%(committerdate:unix)` over local and origin branches.
+export function branchTimes(output: string): Map<string, Sides> {
+  const times = new Map<string, Sides>();
+  for (const line of output.split("\n").filter(Boolean)) {
+    const [ref = "", time = "0"] = line.split("|");
+    const seconds = Number(time);
+    if (ref.startsWith("refs/heads/")) {
+      const name = ref.slice("refs/heads/".length);
+      times.set(name, { ...times.get(name), local: seconds });
+    } else if (
+      ref.startsWith("refs/remotes/origin/") &&
+      ref !== "refs/remotes/origin/HEAD"
+    ) {
+      const name = ref.slice("refs/remotes/origin/".length);
+      times.set(name, { ...times.get(name), origin: seconds });
+    }
+  }
+  return times;
+}
+
+function sidesLabel(sides: Sides): string {
+  if (sides.local !== undefined && sides.origin !== undefined)
+    return "local + origin";
+  return sides.local !== undefined ? "local" : "origin";
+}
+
+function day(seconds: number): string {
+  return new Date(seconds * 1000).toISOString().slice(0, 10);
+}
+
+// Branches untouched since the cutoff: no commit on any side newer than it. With the local
+// scope only the local side counts. Containers and the checked-out branch are never offered.
+export function staleOptions(
+  times: Map<string, Sides>,
+  scope: "pair" | "local",
+  cutoff: number,
+  current: string,
+): Option[] {
+  const options: Option[] = [];
+  for (const [name, sides] of times) {
+    if (isContainer(name) || name === current) continue;
+    if (scope === "local" && sides.local === undefined) continue;
+    const last =
+      scope === "local"
+        ? sides.local
+        : Math.max(sides.local ?? 0, sides.origin ?? 0);
+    if (last === undefined || last >= cutoff) continue;
+    options.push({
+      name,
+      label: `${name}  (${sidesLabel(sides)}, last commit ${day(last)})`,
+    });
+  }
+  return options.sort((x, y) => x.name.localeCompare(y.name));
+}
+
+// Local branches with no origin copy. Containers and the checked-out branch are never offered.
+export function detachedOptions(
+  times: Map<string, Sides>,
+  current: string,
+): Option[] {
+  const options: Option[] = [];
+  for (const [name, sides] of times) {
+    if (sides.local === undefined || sides.origin !== undefined) continue;
+    if (isContainer(name) || name === current) continue;
+    options.push({ name, label: `${name}  (local only)` });
+  }
+  return options.sort((x, y) => x.name.localeCompare(y.name));
 }
 
 // Lists the options (the first `limit`, or all) and reads which ones to remove.
@@ -173,24 +235,95 @@ function currentBranch(): string {
 
 // Deletes the local branch (git branch -d refuses unmerged ones) and the origin branch.
 // A pair removes whichever sides exist, so a branch that only lives here is still removed.
+// Every removal prints what it will remove before running anything.
 function removeBranches(scope: Scope, names: string[]): void {
-  for (const name of names) {
-    if (scope === "remote") {
-      gitArgs(["push", "origin", "--delete", name]);
-      continue;
-    }
-    if (scope === "local") {
-      gitArgs(["branch", "-d", "--", name]);
-      continue;
-    }
+  const plan = names.map((name) => {
+    if (scope === "remote") return { name, local: false, origin: true };
+    if (scope === "local") return { name, local: true, origin: false };
     const local = hasLocal(name);
-    const remote = hasOnOrigin(name);
-    if (!local && !remote) {
+    const origin = hasOnOrigin(name);
+    if (!local && !origin) {
       throw new Error(`'${name}' exists neither locally nor on origin.`);
     }
-    if (local) gitArgs(["branch", "-d", "--", name]);
-    if (remote) gitArgs(["push", "origin", "--delete", name]);
+    return { name, local, origin };
+  });
+  if (plan.length > 0) console.log("Will remove:");
+  for (const { name, local, origin } of plan) {
+    const sides = [local && "local", origin && "origin"]
+      .filter(Boolean)
+      .join(" + ");
+    console.log(`  ${name}  (${sides})`);
   }
+  for (const { name, local, origin } of plan) {
+    if (local) gitArgs(["branch", "-d", "--", name]);
+    if (origin) gitArgs(["push", "origin", "--delete", name]);
+  }
+}
+
+const DEFAULT_DAYS = 90;
+
+// A positive whole number from a value flag, or undefined when it is not given.
+function parsePositive(flags: Flags, name: string): number | undefined {
+  const raw = flags.get(name);
+  if (raw === undefined) return undefined;
+  if (!/^[1-9]\d*$/.test(raw))
+    throw new Error(`-${name} needs a positive whole number.`);
+  return Number(raw);
+}
+
+function readTimes(): Map<string, Sides> {
+  return branchTimes(
+    captureArgs([
+      "for-each-ref",
+      "--format=%(refname)|%(committerdate:unix)",
+      "refs/heads",
+      "refs/remotes/origin",
+    ]),
+  );
+}
+
+// gith remove --obsolete [--local]: branches untouched for -days (default 90) are listed,
+// then removed on both sides, or here only with --local, after a Y/n prompt.
+async function obsolete(flags: Flags, scope: "pair" | "local"): Promise<void> {
+  gitArgs(["fetch", "--prune", "origin"]);
+  const days = parsePositive(flags, "days") ?? DEFAULT_DAYS;
+  const cutoff = Math.floor(Date.now() / 1000) - days * 86400;
+  const options = staleOptions(readTimes(), scope, cutoff, currentBranch());
+  if (options.length === 0) {
+    console.log(`No branches untouched for ${days} days.`);
+    return;
+  }
+  const limit = parseLimit(flags);
+  const shown = limit === undefined ? options : options.slice(0, limit);
+  console.log(`Untouched for ${days} days or more:`);
+  for (const [i, option] of shown.entries()) {
+    console.log(`  ${i + 1}. ${option.label}`);
+  }
+  if (shown.length < options.length) {
+    console.log(
+      `showing ${shown.length} of ${options.length}; -limit <n> shows more`,
+    );
+  }
+  const where = scope === "local" ? "here" : "here and on origin";
+  const yes = await confirm(
+    `Remove these ${shown.length} branches ${where}? [Y/n] `,
+  );
+  if (!yes) {
+    console.log("Nothing removed.");
+    return;
+  }
+  removeBranches(
+    scope,
+    shown.map((option) => option.name),
+  );
+}
+
+// gith remove --detached: local branches with no origin copy, picked from a list.
+async function detached(flags: Flags): Promise<void> {
+  requireTerminal();
+  gitArgs(["fetch", "--prune", "origin"]);
+  const options = detachedOptions(readTimes(), currentBranch());
+  removeBranches("local", await choose(options, parseLimit(flags)));
 }
 
 // gith remove -b <branch> [--local | --remote]: removes the branch here and on origin, or one side.
@@ -199,18 +332,24 @@ export async function remove(flags: Flags): Promise<void> {
   const name = flags.get("branch");
   const side = onlyOne(flags, ["local", "remote"]);
   const scope: Scope = side ?? "pair";
-  if (flags.has("obsolete")) {
-    if (name !== undefined || side)
-      throw new Error("usage: gith remove --obsolete [-l <n>]");
-    const forEachRef = captureArgs([
-      "for-each-ref",
-      "--format=%(refname:short)|%(upstream:track)",
-      "refs/heads",
-    ]);
-    requireTerminal();
-    const options = obsoleteOf(forEachRef, currentBranch());
-    removeBranches("local", await choose(options, parseLimit(flags)));
-    return;
+  const obsoleteOn = flags.has("obsolete");
+  const detachedOn = flags.has("detached");
+  if (obsoleteOn && detachedOn)
+    throw new Error("use only one of: --obsolete, --detached.");
+  if (flags.has("days") && !obsoleteOn)
+    throw new Error("-days only applies to --obsolete.");
+  if (obsoleteOn || detachedOn) {
+    const usage = detachedOn
+      ? "usage: gith remove --detached [-l <n>]"
+      : "usage: gith remove --obsolete [--local] [-days <n>] [-l <n>]";
+    if (
+      name !== undefined ||
+      (obsoleteOn && side === "remote") ||
+      (detachedOn && side)
+    )
+      throw new Error(usage);
+    if (detachedOn) return detached(flags);
+    return obsolete(flags, side === "local" ? "local" : "pair");
   }
   if (name === undefined)
     throw new Error(

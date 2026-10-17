@@ -35,7 +35,8 @@ Usage:
   gith remove --branch --local       list local branches and pick
   gith remove --branch --remote      list origin branches and pick
   gith rm                    alias of remove
-  gith remove --obsolete [-l <n>]  pick local branches whose origin copy was deleted
+  gith remove --obsolete [--local] [-days <n>]  remove branches untouched for 90 days (default), after Y/n
+  gith remove --detached [-l <n>]    pick local branches that have no origin copy
   gith list --tags [-l <n>]  tags with a local and origin column (newest 5 by default)
   gith list --commits [--graph] [-l <n>]  newest commits on this branch (default 5)
   gith list --stashes [-l <n>]  stashes, newest first (default 5)
@@ -60,7 +61,7 @@ Usage:
 Flags follow one rule: a single dash always takes a value, a double dash never does.
   -name <value>   -b, -branch, -r, -release, -h, -hotfix, -l, -limit, -m, -message,
                   -n, -name, -count
-  --name          --patch, --minor, --major, --local, --remote, --obsolete, --tags,
+  --name          --patch, --minor, --major, --local, --remote, --obsolete, --detached, --tags,
                   --commits, --graph, --stashes
   alone           --branch (picker), --release and --hotfix (latest tag)`;
 

@@ -19,6 +19,7 @@ const SPECS = new Map<string, Kind>([
   ["message", "value"],
   ["name", "value"],
   ["count", "value"],
+  ["days", "value"],
   ["patch", "switch"],
   ["minor", "switch"],
   ["major", "switch"],
@@ -29,6 +30,7 @@ const SPECS = new Map<string, Kind>([
   ["obsolete", "switch"],
   ["graph", "switch"],
   ["stashes", "switch"],
+  ["detached", "switch"],
 ]);
 
 // Short forms, so `-b` and `-branch` mean the same flag.

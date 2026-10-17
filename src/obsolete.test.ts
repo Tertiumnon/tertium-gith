@@ -3,36 +3,82 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { obsoleteOf } from "./maintenance";
+import { branchTimes, detachedOptions, staleOptions } from "./maintenance";
 
 const CLI = path.resolve(import.meta.dir, "cli.ts");
+const DAY = 86400;
+const NOW = 1_800_000_000;
 
-function git(cwd: string, args: string[]) {
-  return spawnSync("git", args, { cwd, encoding: "utf8" });
+function git(cwd: string, args: string[], date?: number) {
+  const env =
+    date === undefined
+      ? process.env
+      : {
+          ...process.env,
+          GIT_COMMITTER_DATE: `${date} +0000`,
+          GIT_AUTHOR_DATE: `${date} +0000`,
+        };
+  return spawnSync("git", args, { cwd, encoding: "utf8", env });
 }
 
 function gith(cwd: string, args: string[]) {
   return spawnSync(process.execPath, [CLI, ...args], { cwd, encoding: "utf8" });
 }
 
-describe("obsoleteOf", () => {
-  test("keeps branches whose upstream is gone, minus containers and the current branch", () => {
-    const output = [
-      "feature|[gone]",
-      "main|",
-      "develop|[gone]",
-      "current|[gone]",
-      "ahead-only|[ahead 1]",
-      "",
-    ].join("\n");
-    expect(obsoleteOf(output, "current")).toEqual([
-      { name: "feature", label: "feature  (origin deleted)" },
+function branchExists(cwd: string, name: string): boolean {
+  return git(cwd, ["branch", "--list", name]).stdout.trim() !== "";
+}
+
+describe("branch ages", () => {
+  const output = [
+    "refs/heads/old-both|100",
+    "refs/remotes/origin/old-both|200",
+    "refs/heads/fresh|1000000000000",
+    "refs/heads/old-local|50",
+    "refs/remotes/origin/old-remote|60",
+    "refs/remotes/origin/HEAD|1",
+    "refs/heads/main|10",
+    "refs/remotes/origin/main|10",
+  ].join("\n");
+
+  test("staleOptions keeps branches with no recent commit on any side", () => {
+    const times = branchTimes(output);
+    const names = staleOptions(times, "pair", NOW - 90 * DAY, "other").map(
+      (o) => o.name,
+    );
+    expect(names).toEqual(["old-both", "old-local", "old-remote"]);
+    expect(
+      staleOptions(times, "pair", NOW - 90 * DAY, "other").find(
+        (o) => o.name === "old-both",
+      )?.label,
+    ).toContain("old-both  (local + origin, last commit 1970-01-01)");
+  });
+
+  test("the local scope looks only at local branches; containers and the current branch are skipped", () => {
+    const times = branchTimes(output);
+    expect(
+      staleOptions(times, "local", NOW - 90 * DAY, "old-local").map(
+        (o) => o.name,
+      ),
+    ).toEqual(["old-both"]);
+    expect(
+      staleOptions(times, "pair", NOW - 90 * DAY, "old-both").map(
+        (o) => o.name,
+      ),
+    ).not.toContain("old-both");
+  });
+
+  test("detachedOptions lists local branches with no origin copy", () => {
+    const times = branchTimes(output);
+    expect(detachedOptions(times, "other")).toEqual([
+      { name: "fresh", label: "fresh  (local only)" },
+      { name: "old-local", label: "old-local  (local only)" },
     ]);
   });
 });
 
-describe("remove --obsolete and list --commits --graph", () => {
-  test("--obsolete needs a terminal to pick, reports none, and refuses a name", () => {
+describe("remove --obsolete, --detached and list --commits --graph", () => {
+  test("obsolete lists old branches, asks, and previews with --dry-run; flags are checked", () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "gith-obsolete-"));
     try {
       const repo = path.join(tmp, "repo");
@@ -46,22 +92,34 @@ describe("remove --obsolete and list --commits --graph", () => {
       git(repo, ["commit", "-m", "initial"]);
       git(repo, ["remote", "add", "origin", "../remote.git"]);
       git(repo, ["push", "-u", "origin", "main"]);
-      git(repo, ["branch", "feature"]);
-      git(repo, ["push", "-u", "origin", "feature"]);
-      git(repo, ["push", "origin", "--delete", "feature"]);
-      git(repo, ["fetch", "--prune"]);
+
+      const longAgo = Math.floor(Date.now() / 1000) - 400 * DAY;
+      git(repo, ["switch", "-c", "old"]);
+      fs.writeFileSync(path.join(repo, "old.txt"), "old");
+      git(repo, ["add", "."]);
+      git(repo, ["commit", "-m", "old work"], longAgo);
+      git(repo, ["push", "-u", "origin", "old"]);
+      git(repo, ["switch", "main"]);
+      git(repo, ["branch", "fresh"]);
 
       const picked = gith(repo, ["remove", "--obsolete"]);
-      expect(picked.status).toBe(1);
-      expect(picked.stderr).toContain("the list needs a terminal");
-      expect(gith(repo, ["remove", "--obsolete", "-b", "feature"]).status).toBe(
-        1,
-      );
+      expect(picked.status).toBe(1); // the Y/n prompt needs a terminal
+      expect(picked.stdout).toContain("old  (local + origin");
+      expect(picked.stdout).not.toContain("fresh");
+      expect(branchExists(repo, "old")).toBe(true);
 
-      git(repo, ["branch", "--unset-upstream", "feature"]);
-      git(repo, ["branch", "other"]);
-      expect(gith(repo, ["remove", "--obsolete"]).status).toBe(1); // needs a terminal, checked first
+      const dry = gith(repo, ["remove", "--obsolete", "--dry-run"]);
+      expect(dry.status).toBe(0);
+      expect(dry.stdout).toContain("> git branch -d -- old");
+      expect(dry.stdout).toContain("> git push origin --delete old");
+      expect(branchExists(repo, "old")).toBe(true);
 
+      expect(gith(repo, ["remove", "--obsolete", "--remote"]).status).toBe(1);
+      expect(gith(repo, ["remove", "--obsolete", "-days", "0"]).status).toBe(1);
+      expect(gith(repo, ["remove", "-days", "5"]).status).toBe(1);
+      expect(gith(repo, ["remove", "--obsolete", "--detached"]).status).toBe(1);
+
+      expect(gith(repo, ["remove", "--detached"]).status).toBe(1); // needs a terminal
       expect(
         gith(repo, ["list", "--commits", "--graph", "-l", "1"]).stdout,
       ).toContain("*");

@@ -33,7 +33,10 @@ gith remove --branch                # list branch pairs (here and on origin) and
 gith remove --branch -l 10          # only the first 10 in the list
 gith remove --branch --local        # list local branches and pick
 gith remove --branch --remote       # list origin branches and pick
-gith remove --obsolete              # pick local branches whose origin copy was deleted
+gith remove --obsolete              # remove branches untouched for 90 days, on both sides, after Y/n
+gith remove --obsolete --local      # the same, here only
+gith remove --obsolete -days 30     # untouched for 30 days instead
+gith remove --detached              # pick local branches that have no origin copy
 gith list --tags                    # the newest 5 tags with a LOCAL and ORIGIN column
 gith list --tags -l 20              # the newest 20
 gith list --commits                 # the last 5 commits on this branch
@@ -77,7 +80,8 @@ One rule applies to every command: **a single dash always takes a value, and a d
 | `-l <n>`, `-limit <n>` | value, positive whole number | every listing: `list`, `tree`, the picker |
 | `--patch`, `--minor`, `--major` | switch | `release` |
 | `--local`, `--remote` | switch | `remove` (both sides when neither is given) |
-| `--obsolete` | switch | `remove` |
+| `--obsolete`, `--detached` | switch | `remove` |
+| `-days <n>` | value | `remove --obsolete` |
 | `--tags`, `--commits`, `--graph`, `--stashes` | switch | `list` |
 | `--verbose` | switch | every command |
 | `--dry-run` | switch | every command |
@@ -101,7 +105,9 @@ Commands that choose between flags (for example `create -b`, `-r` and `-h`, or `
 - **`list --stashes`** shows the stashes, newest first, with their date and description. Like the other listings, it shows 5 by default, and `-limit` changes that.
 - **`squash -count <n>`** combines the last `n` commits on the current work branch into one, using `reset --soft` and a single commit. Without `-m` the result keeps the oldest of the combined commits, its message and author. It refuses when `n` is below 2, when `n` would reach the first commit, when a merge is among them, when any of them is already on origin, on a container, or with a dirty working tree.
 - **`unstash`** runs `git stash pop`. If it conflicts, git keeps the stash in the list.
-- **`remove --obsolete`** lists local branches whose origin copy was deleted (git shows them as `[gone]` after a fetch). It works like the picker: choose the numbers to delete. It uses `git branch -d`, so a branch that git does not see as merged is kept. A branch merged by squash on GitHub is not seen as merged, so git keeps it.
+- **`remove --obsolete`** fetches and prunes origin, then lists the branches untouched for `-days` (default 90): no commit newer than the cutoff on either side. Each line shows the sides and the last commit date, and the command asks `Remove these N branches here and on origin? [Y/n]`. Enter means yes. `--local` looks at and removes only local branches. `-limit` shows only the first `n`, and the prompt covers only those. `main`, `develop`, `release/*` and `hotfix/*` are never removed, and neither is the checked-out branch. Each branch is deleted locally first (`git branch -d`), so a branch that git does not see as merged stops the run before its origin copy is touched.
+- **`remove --detached`** fetches and prunes origin, then lists local branches that have no origin copy and lets you pick from them, the same as `remove --branch --local` but for branches with no origin copy only.
+- **Every removal shows what it will remove** before deleting anything, including the direct `remove -b` form. The picker and the prompt both show it first.
 - **`open`** opens origin in the browser, turning an `ssh` or `https` remote into a web address. GitHub and GitLab style addresses work.
 - **`doctor`** checks git, a repository, origin, its reachability, `main` and `develop` on origin, and a clean working tree. It exits 1 if a required check fails, and only warns about the tree.
 - **`sync`** runs `git fetch --all --tags --prune`.
