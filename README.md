@@ -22,12 +22,14 @@ Git helper: the branch flow from [git-convention](https://github.com/Tertiumnon/
 ## Usage
 
 ```bash
-# Branch flow
+# Start and finish work
 gith create -b login-redirect       # work branch from develop, named by its goal; stays on the current branch
 gith create -r 1.2.0                # release/1.2.0 from develop
 gith create -h 1.2.1                # hotfix/1.2.1 from main
 gith create --release               # release, version = minor after the latest tag
 gith create --hotfix                # hotfix, version = patch after the latest tag
+gith switch -b login-redirect       # switch to the branch, creating it from develop if it is missing
+gith update                         # merge origin/develop into this work branch
 gith merge                          # this branch into develop
 gith merge -r 1.2.0                 # this branch into release/1.2.0
 gith merge -h 1.2.1                 # this branch into hotfix/1.2.1
@@ -35,8 +37,18 @@ gith release --patch                # npm version patch, published through main
 gith release --minor                # npm version minor, from develop into main
 gith release --major                # npm version major, from develop into main
 
-# Everyday git
-gith switch -b login-redirect       # switch to the branch, creating it from develop if it is missing
+# Fix history
+gith undo                           # undo the last commit, keep its changes staged (not if pushed)
+gith amend                          # fold staged changes into the last commit (asks before a force-push)
+gith squash -limit 3 [-m "msg"]     # combine the last 3 commits into one (keeps the oldest message)
+
+# Save and reset work
+gith stash -n wip                   # stash changes, including untracked files, under a name
+gith unstash                        # bring back the latest stash
+gith reset                          # discard uncommitted changes, then clean
+gith clean                          # remove untracked files and directories
+
+# Clean up branches (every removal shows what it will remove first)
 gith remove -b login-redirect       # delete the branch here and on origin (rm is an alias)
 gith remove -b login-redirect --local    # delete only the local branch
 gith remove -b login-redirect --remote   # delete only the origin branch
@@ -48,31 +60,29 @@ gith remove --obsolete              # remove branches untouched for 90 days, on 
 gith remove --obsolete --local      # the same, here only
 gith remove --obsolete -days 30     # untouched for 30 days instead
 gith remove --detached              # pick local branches that have no origin copy
-gith list --tags                    # the newest 5 tags with a LOCAL and ORIGIN column
-gith list --tags -l 20              # the newest 20
+
+# Look at the repo
+gith status                         # branch vs origin, and staged, unstaged and untracked counts
 gith list --commits                 # the last 5 commits on this branch
 gith list --commits --graph         # the same, as a branch graph
 gith list --commits -l 10           # the last 10 (-limit 10 works too)
-gith status                         # branch vs origin, and staged, unstaged and untracked counts
-gith stat                           # fun facts about this branch: biggest commit, busiest day, streaks...
-gith stat --last-week -limit 50     # the same for last week, looking at no more than 50 commits
-gith update                         # merge origin/develop into this work branch
-gith undo                           # undo the last commit, keep its changes staged (not if pushed)
-gith amend                          # fold staged changes into the last commit (not if pushed)
-gith stash -n wip                   # stash changes, including untracked files, under a name
-gith squash -limit 3 [-m "msg"]     # combine the last 3 commits into one (keeps the oldest message)
-gith unstash                        # bring back the latest stash
+gith list --tags                    # the newest 5 tags with a LOCAL and ORIGIN column
+gith list --tags -l 20              # the newest 20
 gith list --stashes                 # the newest 5 stashes (-l for more)
 gith tree                           # working trees of this repo: path, branch, HEAD (current marked *)
+gith stat                           # fun facts about this branch: biggest commit, busiest day, streaks...
+gith stat --last-week -limit 50     # the same for last week, looking at no more than 50 commits
+
+# Remote and health
+gith sync                           # fetch all remotes and tags, prune stale refs
 gith open                           # open origin in the browser
 gith doctor                         # check the repo is ready for the branch flow
-gith sync                           # fetch all remotes and tags, prune stale refs
-gith clean                          # remove untracked files and directories
-gith reset                          # discard uncommitted changes, then clean
+
+# Help
 gith help                           # full usage
 gith --version                      # the version, with the mascot
 
-# Add --verbose to any command to see the git commands it runs, including read-only ones.
+# Any command: add --verbose to see the git commands it runs, including read-only ones.
 gith list --tags --verbose
 ```
 
