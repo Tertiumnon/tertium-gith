@@ -1,20 +1,26 @@
 import { exit } from "node:process";
-import { onlyOne, parseFlags } from "./args";
-import { create, merge } from "./commands";
-import { doctor } from "./doctor";
-import { find } from "./find";
-import { isDryRun, setDryRun, setVerbose } from "./git";
-import { save, squash, undo, update } from "./history";
-import { list } from "./list";
-import { clean, remove, reset, switchBranch, sync } from "./maintenance";
-import { open } from "./open";
-import { setAssumeYes } from "./prompt";
-import { release } from "./release";
-import { stash, unstash } from "./stash";
-import { stat } from "./stat";
-import { status } from "./status";
-import { tree } from "./tree";
-import { versionText } from "./version";
+import { onlyOne, parseFlags } from "./components/args/args";
+import { doctor } from "./components/doctor/doctor";
+import { find } from "./components/find/find";
+import { create, merge } from "./components/flow/flow";
+import { isDryRun, setDryRun, setVerbose } from "./components/git/git";
+import { save, squash, undo, update } from "./components/history/history";
+import { list } from "./components/list/list";
+import {
+  clean,
+  remove,
+  reset,
+  switchBranch,
+  sync,
+} from "./components/maintenance/maintenance";
+import { open } from "./components/open/open";
+import { setAssumeYes } from "./components/prompt/prompt";
+import { release } from "./components/release/release";
+import { stash, unstash } from "./components/stash/stash";
+import { stat } from "./components/stat/stat";
+import { status } from "./components/status/status";
+import { tree } from "./components/tree/tree";
+import { versionText } from "./components/version/version";
 
 const USAGE = `gith - git helper: branch flow and everyday git commands
 
