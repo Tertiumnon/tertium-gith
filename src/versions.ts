@@ -13,7 +13,8 @@ export function parseSemver(tag: string): Semver | undefined {
   return [Number(match[1]), Number(match[2]), Number(match[3])];
 }
 
-function compare(a: Semver, b: Semver): number {
+// Negative when a is older than b, positive when newer, 0 when equal.
+export function compare(a: Semver, b: Semver): number {
   for (let i = 0; i < 3; i++) {
     const diff = (a[i] ?? 0) - (b[i] ?? 0);
     if (diff !== 0) return diff;

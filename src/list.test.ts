@@ -1,0 +1,80 @@
+import { describe, expect, test } from "bun:test";
+import { spawnSync } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { tagPairs } from "./list";
+
+const CLI = path.resolve(import.meta.dir, "cli.ts");
+
+function git(cwd: string, args: string[]) {
+  return spawnSync("git", args, { cwd, encoding: "utf8" });
+}
+
+describe("tagPairs", () => {
+  test("marks each tag as local, origin, or both", () => {
+    expect(tagPairs(["v1.0.0", "v1.1.0"], ["v1.1.0", "v2.0.0"])).toEqual([
+      { name: "v2.0.0", local: false, origin: true },
+      { name: "v1.1.0", local: true, origin: true },
+      { name: "v1.0.0", local: true, origin: false },
+    ]);
+  });
+
+  test("sorts versions numerically, newest first, and other tags after them", () => {
+    const names = tagPairs(["v1.9.0", "nightly", "v1.10.0", "beta"], []).map(
+      (pair) => pair.name,
+    );
+    expect(names).toEqual(["v1.10.0", "v1.9.0", "beta", "nightly"]);
+  });
+});
+
+describe("gith list --tags", () => {
+  test("shows tags on each side and requires --tags", () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "gith-list-"));
+    try {
+      const repo = path.join(tmp, "repo");
+      fs.mkdirSync(repo);
+      git(repo, ["init", "-b", "main"]);
+      git(tmp, ["init", "--bare", path.join(tmp, "remote.git")]);
+      git(repo, ["config", "user.email", "test@example.com"]);
+      git(repo, ["config", "user.name", "Test"]);
+      fs.writeFileSync(path.join(repo, "a.txt"), "a");
+      git(repo, ["add", "."]);
+      git(repo, ["commit", "-m", "initial"]);
+      git(repo, ["remote", "add", "origin", "../remote.git"]);
+      git(repo, ["push", "-u", "origin", "main"]);
+
+      // v1.0.0 on both sides, v1.1.0 local only, v2.0.0 origin only.
+      git(repo, ["tag", "v1.0.0"]);
+      git(repo, ["push", "origin", "v1.0.0"]);
+      git(repo, ["tag", "v1.1.0"]);
+      git(repo, ["tag", "v2.0.0"]);
+      git(repo, ["push", "origin", "v2.0.0"]);
+      git(repo, ["tag", "-d", "v2.0.0"]);
+
+      const result = spawnSync(process.execPath, [CLI, "list", "--tags"], {
+        cwd: repo,
+        encoding: "utf8",
+      });
+      expect(result.status).toBe(0);
+      expect(result.stdout).toBe(
+        [
+          "TAG     LOCAL  ORIGIN",
+          "v2.0.0  no     yes",
+          "v1.1.0  yes    no",
+          "v1.0.0  yes    yes",
+          "",
+        ].join("\n"),
+      );
+
+      expect(
+        spawnSync(process.execPath, [CLI, "list"], {
+          cwd: repo,
+          encoding: "utf8",
+        }).status,
+      ).toBe(1);
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  }, 60_000);
+});

@@ -23,6 +23,7 @@ const SPECS = new Map<string, Modes>([
   ["force", { single: "none", double: "none" }],
   ["remote", { single: "none", double: "none" }],
   ["both", { single: "none", double: "none" }],
+  ["tags", { single: "none", double: "none" }],
 ]);
 
 // Short forms, so `-b`, `-branch` and `--branch` mean the same flag.
