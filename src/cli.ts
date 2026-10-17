@@ -30,9 +30,12 @@ Start and finish work
   gith create -r <version>           release/<version> from develop
   gith create -h <version>           hotfix/<version> from main
   gith create --release | --hotfix   version from the latest tag: minor for release, patch for hotfix
+  gith switch                        list local and origin branches, and switch to the one picked
   gith switch -b <branch>            switch to a branch, creating it from develop if missing (on a detached HEAD: from that commit)
   gith switch -commit <sha>          detach HEAD at a commit, to look at it (tracked files must be clean)
+  gith switch --release | --hotfix   switch to the newest release/* or hotfix/* (local or origin); -r <v> / -h <v> for one version
   gith update                        merge origin/develop into this work branch
+  gith merge                         pick the branch to merge, then the target (develop, release/*, hotfix/*)
   gith merge [-r <v> | -h <v>]       merge this branch into develop, release/<v> or hotfix/<v>
   gith merge --current-release       merge this branch into the newest release (local or origin)
   gith merge --current-hotfix        merge this branch into the newest hotfix (local or origin)
@@ -53,7 +56,8 @@ Clean up branches (every removal shows what it will remove first)
   gith remove -b <branch>            delete the branch here and on origin (either side may be missing)
   gith remove -b <branch> --local    delete only the local branch
   gith remove -b <branch> --remote   delete only the origin branch
-  gith remove --branch [-l <n>]      pick from branch pairs (here and on origin)
+  gith remove                        pick branches to delete from a list (here and on origin)
+  gith remove --branch [-l <n>]      same list, for branch pairs (here and on origin)
   gith remove --branch --local       pick from local branches
   gith remove --branch --remote      pick from origin branches
   gith remove --obsolete [--local] [-days <n>]   remove branches untouched for 90 days, after Y/n
@@ -109,10 +113,10 @@ try {
       create(parseFlags(rest));
       break;
     case "merge":
-      merge(parseFlags(rest));
+      await merge(parseFlags(rest));
       break;
     case "switch":
-      switchBranch(parseFlags(rest));
+      await switchBranch(parseFlags(rest));
       break;
     case "remove":
     case "rm":
