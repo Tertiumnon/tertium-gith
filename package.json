@@ -18,7 +18,8 @@
     "typecheck": "tsc --noEmit",
     "release:patch": "node bin/gith.js release --patch",
     "release:minor": "node bin/gith.js release --minor",
-    "release:major": "node bin/gith.js release --major"
+    "release:major": "node bin/gith.js release --major",
+    "version": "bun run build && node bin/gith.js changelog && git add CHANGELOG.md"
   },
   "license": "ISC",
   "author": "Vitalii Balabanov",

@@ -1,0 +1,54 @@
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import path from "node:path";
+import type { Flags } from "../args/args.types";
+import { captureArgs, isDryRun } from "../git/git";
+import { CHANGELOG_FILE_NAME } from "./changelog.constants";
+import {
+  buildEntry,
+  filterCommitSubjects,
+  mergeChangelogContent,
+  parsePackageVersion,
+  todayIso,
+} from "./changelog.utils";
+
+// The latest tag reachable from HEAD, or null before the first release.
+function previousTag(): string | null {
+  try {
+    return captureArgs(["describe", "--tags", "--abbrev=0"]);
+  } catch {
+    return null;
+  }
+}
+
+function commitSubjectsSince(tag: string | null): string[] {
+  const range = tag ? `${tag}..HEAD` : "HEAD";
+  return filterCommitSubjects(
+    captureArgs(["log", range, "--no-merges", "--pretty=format:%s"]),
+  );
+}
+
+// gith changelog [--dry-run]: prepends an entry for the version in package.json to CHANGELOG.md,
+// built from the commits since the last tag. Run it from the npm version script, so the file is
+// staged together with the version bump:
+//   "version": "gith changelog && git add CHANGELOG.md"
+export function changelog(flags: Flags): void {
+  if (flags.size > 0) throw new Error("usage: gith changelog [--dry-run]");
+  const root = process.cwd();
+  const version = parsePackageVersion(
+    readFileSync(path.join(root, "package.json"), "utf8"),
+  );
+  const entry = buildEntry({
+    version,
+    date: todayIso(),
+    subjects: commitSubjectsSince(previousTag()),
+  });
+  if (isDryRun()) {
+    console.log(entry);
+    console.log(`dry run: would update ${CHANGELOG_FILE_NAME}`);
+    return;
+  }
+  const file = path.join(root, CHANGELOG_FILE_NAME);
+  const existing = existsSync(file) ? readFileSync(file, "utf8") : null;
+  writeFileSync(file, mergeChangelogContent(existing, entry));
+  console.log(`✅ ${CHANGELOG_FILE_NAME} updated for ${version}`);
+}

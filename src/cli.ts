@@ -1,5 +1,6 @@
 import { exit } from "node:process";
 import { onlyOne, parseFlags } from "./components/args/args";
+import { changelog } from "./components/changelog/changelog";
 import { doctor } from "./components/doctor/doctor";
 import { find } from "./components/find/find";
 import { create, merge } from "./components/flow/flow";
@@ -76,6 +77,7 @@ Remote and health
   gith sync                          fetch all remotes and tags, prune stale refs
   gith open                          open origin in the browser
   gith doctor                        check the repo is ready for the branch flow (exit 1 on failures)
+  gith changelog [--dry-run]         add an entry for package.json's version to CHANGELOG.md (commits since the last tag)
 
 Help
   gith help                          show this help
@@ -156,6 +158,9 @@ try {
       break;
     case "open":
       open(parseFlags(rest));
+      break;
+    case "changelog":
+      changelog(parseFlags(rest));
       break;
     case "doctor":
       if (!doctor(parseFlags(rest))) exit(1);

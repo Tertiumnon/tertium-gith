@@ -93,6 +93,8 @@ gith stat --last-week -limit 50     # the same for last week, looking at no more
 gith sync                           # fetch all remotes and tags, prune stale refs
 gith open                           # open origin in the browser
 gith doctor                         # check the repo is ready for the branch flow
+gith changelog --dry-run            # preview the CHANGELOG.md entry for package.json's version
+gith changelog                      # write it (run from the npm version script, see below)
 
 # Help
 gith help                           # full usage
