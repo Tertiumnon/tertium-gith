@@ -7,7 +7,7 @@ const KINDS: string[] = ["patch", "minor", "major"];
 // Publishes a version. Patch goes from main (hotfix-style), minor and major from develop.
 export function release(kind: string | undefined): void {
   if (!kind || !KINDS.includes(kind))
-    throw new Error("usage: gf release <patch|minor|major>");
+    throw new Error("usage: gith release <patch|minor|major>");
   assertClean();
   if (kind === "patch") {
     releasePatch();

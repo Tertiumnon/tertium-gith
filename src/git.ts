@@ -1,8 +1,25 @@
-import { execSync } from "node:child_process";
+import { execFileSync, execSync } from "node:child_process";
 
 export function git(args: string): void {
   console.log(`> git ${args}`);
   execSync(`git ${args}`, { stdio: "inherit" });
+}
+
+// Runs git with an argument list, so branch names are never parsed by the shell.
+export function gitArgs(args: string[]): void {
+  console.log(`> git ${args.join(" ")}`);
+  execFileSync("git", args, { stdio: "inherit" });
+}
+
+// Throws unless `name` is a valid branch name for git.
+export function assertBranchName(name: string): void {
+  try {
+    execFileSync("git", ["check-ref-format", "--branch", name], {
+      stdio: "ignore",
+    });
+  } catch {
+    throw new Error(`'${name}' is not a valid branch name.`);
+  }
 }
 
 export function capture(args: string): string {

@@ -1,4 +1,4 @@
-// Version math for `gf create -r` and `gf create -h` without an explicit version.
+// Version math for `gith create -r` and `gith create -h` without an explicit version.
 // Pure, so it can be tested without a repository.
 
 export type Bump = "minor" | "patch";

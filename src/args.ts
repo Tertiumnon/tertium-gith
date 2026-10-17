@@ -1,4 +1,4 @@
-// Parses the flags of a gf command. Value flags consume the next token; switches stand alone.
+// Parses the flags of a gith command. Value flags consume the next token; switches stand alone.
 export type Flags = Map<string, string>;
 
 // How a flag takes its value, for single-dash (-x) and double-dash (--x) forms.
@@ -18,6 +18,10 @@ const SPECS = new Map<string, Modes>([
   ["patch", { single: "none", double: "none" }],
   ["minor", { single: "none", double: "none" }],
   ["major", { single: "none", double: "none" }],
+  ["hooks", { single: "none", double: "none" }],
+  ["force", { single: "none", double: "none" }],
+  ["remote", { single: "none", double: "none" }],
+  ["both", { single: "none", double: "none" }],
 ]);
 
 // Short forms, so `-b`, `-branch` and `--branch` mean the same flag.

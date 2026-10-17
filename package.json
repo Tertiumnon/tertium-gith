@@ -1,10 +1,10 @@
 {
-  "name": "@tertium/gf",
+  "name": "gith",
   "version": "0.1.0",
-  "description": "Git-only branch flow: goal branches, release and hotfix containers, merges with sync checks.",
+  "description": "Git helper: branch flow with goal branches, release and hotfix containers, and everyday git commands.",
   "type": "module",
   "bin": {
-    "gf": "./src/cli.ts"
+    "gith": "./src/cli.ts"
   },
   "files": [
     "src/"

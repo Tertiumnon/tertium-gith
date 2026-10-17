@@ -17,23 +17,23 @@ import {
 } from "./rules";
 import { nextVersion } from "./versions";
 
-// gf create -b <branch> | -r [version] | -h [version]
+// gith create -b <branch> | -r [version] | -h [version]
 export function create(flags: Flags): void {
   const kind = onlyOne(flags, ["branch", "release", "hotfix"]);
   if (!kind)
     throw new Error(
-      "usage: gf create -b <branch> | -r [version] | -h [version]",
+      "usage: gith create -b <branch> | -r [version] | -h [version]",
     );
   const value = flags.get(kind) ?? "";
   if (kind === "branch") {
-    if (!value) throw new Error("usage: gf create -b <branch>");
+    if (!value) throw new Error("usage: gith create -b <branch>");
     start(value);
     return;
   }
   open(kind, value || nextContainerVersion(kind));
 }
 
-// gf merge [-r <version> | -h <version>]: merges this branch into develop by default.
+// gith merge [-r <version> | -h <version>]: merges this branch into develop by default.
 export function merge(flags: Flags): void {
   const kind = onlyOne(flags, ["release", "hotfix"]);
   let target = "develop";
@@ -41,7 +41,7 @@ export function merge(flags: Flags): void {
     const version = flags.get(kind) ?? "";
     if (!version) {
       throw new Error(
-        `usage: gf merge -${kind === "release" ? "r" : "h"} <version>`,
+        `usage: gith merge -${kind === "release" ? "r" : "h"} <version>`,
       );
     }
     target = containerName(kind, version);
