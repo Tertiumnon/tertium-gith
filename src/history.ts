@@ -1,12 +1,5 @@
 import { type Flags, parseLimit } from "./args";
-import {
-  assertClean,
-  capture,
-  captureArgs,
-  gitArgs,
-  hasOnOrigin,
-  isDryRun,
-} from "./git";
+import { assertClean, capture, captureArgs, gitArgs, isDryRun } from "./git";
 import { confirm } from "./prompt";
 import { isContainer } from "./rules";
 
@@ -22,7 +15,7 @@ function currentBranch(): string {
   return name;
 }
 
-// Undoing or amending a commit that origin already has would need a force-push.
+// Undoing a commit that origin already has would need a force-push.
 function assertNotPushed(): void {
   if (captureArgs(["branch", "-r", "--contains", "HEAD"]) !== "") {
     throw new Error(
@@ -60,12 +53,18 @@ export function undo(flags: Flags): void {
   gitArgs(["reset", "--soft", "HEAD~1"]);
 }
 
-// gith amend: folds the staged changes into the last commit, keeping its message.
-// gith amend: folds the staged changes into the last commit. If that commit is already on this
-// branch's origin copy, it asks first, then force-pushes with --force-with-lease, which refuses if
-// origin moved since the last fetch.
-export async function amend(flags: Flags): Promise<void> {
-  noFlags(flags, "amend");
+// The commit origin has for this branch, or "" when origin has no such branch.
+function remoteSha(branch: string): string {
+  return (
+    captureArgs(["ls-remote", "--heads", "origin", branch]).split("\t")[0] ?? ""
+  );
+}
+
+// gith save: folds the staged changes into the last commit, keeping its message. It pushes only
+// when origin already has this branch and its copy differs from the new commit: a plain push when
+// the commit moves forward, or --force-with-lease after rewriting a pushed commit (asks first).
+export async function save(flags: Flags): Promise<void> {
+  noFlags(flags, "save");
   const branch = currentBranch();
   if (captureArgs(["diff", "--cached", "--name-only"]) === "") {
     throw new Error(
@@ -73,22 +72,32 @@ export async function amend(flags: Flags): Promise<void> {
     );
   }
   const pushed = captureArgs(["branch", "-r", "--contains", "HEAD"]) !== "";
-  if (pushed && !hasOnOrigin(branch)) {
+  const remote = remoteSha(branch);
+  if (pushed && remote === "") {
     throw new Error(
       "HEAD is already on origin under another branch; changing it would need a force-push.",
     );
   }
   if (pushed) {
     const yes = await confirm(
-      `HEAD is already on origin/${branch}. Amend it and force-push ${branch}? [Y/n] `,
+      `HEAD is already on origin/${branch}. Save it and force-push ${branch}? [Y/n] `,
     );
     if (!yes) {
-      console.log("amend cancelled; nothing changed.");
+      console.log("save cancelled; nothing changed.");
       return;
     }
   }
   gitArgs(["commit", "--amend", "--no-edit"]);
+  if (remote === "") {
+    console.log(`origin has no ${branch}; not pushed.`);
+    return;
+  }
+  if (!isDryRun() && captureArgs(["rev-parse", "HEAD"]) === remote) {
+    console.log("origin already has this commit; not pushed.");
+    return;
+  }
   if (pushed) gitArgs(["push", "--force-with-lease", "origin", branch]);
+  else gitArgs(["push", "origin", branch]);
 }
 
 // gith squash -limit <n> [-m <message>]: combines the last n commits into one. Without -m the

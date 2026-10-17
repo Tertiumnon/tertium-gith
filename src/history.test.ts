@@ -62,7 +62,7 @@ describe("parseStatus", () => {
   });
 });
 
-describe("status, stash, update, undo and amend", () => {
+describe("status, stash, update, undo and save", () => {
   test("status reports the branch and counts; stash and unstash round-trip", () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "gith-status-"));
     try {
@@ -127,18 +127,18 @@ describe("status, stash, update, undo and amend", () => {
     }
   }, 60_000);
 
-  test("amend folds staged changes into the last commit and refuses when nothing is staged", () => {
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "gith-amend-"));
+  test("save folds staged changes into the last commit and refuses when nothing is staged", () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "gith-save-"));
     try {
       const repo = fixture(tmp);
       git(repo, ["switch", "-c", "work"]);
       commitFile(repo, "one.txt", "add one");
       const before = git(repo, ["rev-list", "--count", "HEAD"]).stdout.trim();
 
-      expect(gith(repo, ["amend"]).status).toBe(1); // nothing staged
+      expect(gith(repo, ["save"]).status).toBe(1); // nothing staged
       fs.writeFileSync(path.join(repo, "one.txt"), "amended");
       git(repo, ["add", "one.txt"]);
-      expect(gith(repo, ["amend"]).status).toBe(0);
+      expect(gith(repo, ["save"]).status).toBe(0);
       expect(git(repo, ["rev-list", "--count", "HEAD"]).stdout.trim()).toBe(
         before,
       );

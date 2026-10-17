@@ -11,7 +11,7 @@
        d b
 ```
 
-Git helper: the branch flow from [git-convention](https://github.com/Tertiumnon/git-convention) (goal-named work branches, `release/*` and `hotfix/*` containers, merges that sync both sides with origin), plus everyday git commands: status, switch, update, undo, amend, squash, stash, remove, list, tree, sync, clean, reset, open, doctor and stat. Any command takes `--dry-run` to show the git commands it would run. No dependencies beyond git and [Bun](https://bun.com).
+Git helper: the branch flow from [git-convention](https://github.com/Tertiumnon/git-convention) (goal-named work branches, `release/*` and `hotfix/*` containers, merges that sync both sides with origin), plus everyday git commands: status, switch, update, undo, save, squash, stash, remove, list, tree, sync, clean, reset, open, doctor and stat. Any command takes `--dry-run` to show the git commands it would run. No dependencies beyond git and [Bun](https://bun.com).
 
 > **Very early state (0.1.0).** Commands and flags may change without notice, and the tool has only been run against throwaway test repositories. Check the result with `git log` and `git status` before you push.
 
@@ -39,7 +39,7 @@ gith release --major                # npm version major, from develop into main
 
 # Fix history
 gith undo                           # undo the last commit, keep its changes staged (not if pushed)
-gith amend                          # fold staged changes into the last commit (asks before a force-push)
+gith save                           # fold staged changes into the last commit; pushes if origin differs (asks before a force-push)
 gith squash -limit 3 [-m "msg"]     # combine the last 3 commits into one (keeps the oldest message)
 
 # Save and reset work
@@ -125,7 +125,7 @@ Commands that choose between flags (for example `create -b`, `-r` and `-h`, or `
 - **`status`** prints the branch and how far it is ahead of or behind its origin branch, then counts staged, unstaged, untracked and conflicting files. It changes nothing.
 - **`update`** fetches `origin/develop` and merges it into the current work branch. It needs a clean working tree and refuses containers. If the merge conflicts, it aborts the merge and says so. It does not push.
 - **`undo`** runs `git reset --soft HEAD~1`: the last commit is removed and its changes stay staged. It refuses when HEAD is already on origin, because undoing a pushed commit needs a force-push.
-- **`amend`** runs `git commit --amend --no-edit` to fold the staged changes into the last commit, keeping its message. It refuses with nothing staged. If HEAD is already on origin under this branch, it asks `Force-push ...? [Y/n]` first (Enter means yes; a no changes nothing). On yes it amends and runs `git push --force-with-lease origin <branch>`, which refuses if origin moved since your last fetch. The question needs a terminal, so a script cannot force-push by accident. If HEAD is on origin under another branch, it refuses.
+- **`save`** runs `git commit --amend --no-edit` to fold the staged changes into the last commit, keeping its message. It refuses with nothing staged. It pushes only when origin already has this branch and its copy differs from the new commit. If origin's copy is a commit that the save only moves forward, it runs a plain `git push origin <branch>`. If HEAD was already pushed, the save rewrites it: it asks `Save it and force-push ...? [Y/n]` first (Enter means yes; a no changes nothing), then runs `git push --force-with-lease origin <branch>`, which refuses if origin moved since your last fetch. If origin has no such branch, the save stays local. If HEAD is on origin under another branch, it refuses. The question needs a terminal, so a script cannot force-push by accident.
 - **`stash`** saves changes with `git stash push --include-untracked`. `-n` names the stash. It refuses when there is nothing to save.
 - **`list --stashes`** shows the stashes, newest first, with their date and description. Like the other listings, it shows 5 by default, and `-limit` changes that.
 - **`squash -limit <n>`** combines the last `n` commits on the current work branch into one, using `reset --soft` and a single commit. Without `-m` the result keeps the oldest of the combined commits, its message and author. It refuses when `n` is below 2, when `n` would reach the first commit, when a merge is among them, when any of them is already on origin, on a container, or with a dirty working tree.

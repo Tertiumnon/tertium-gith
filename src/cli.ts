@@ -4,7 +4,7 @@ import { onlyOne, parseFlags } from "./args";
 import { create, merge } from "./commands";
 import { doctor } from "./doctor";
 import { isDryRun, setDryRun, setVerbose } from "./git";
-import { amend, squash, undo, update } from "./history";
+import { save, squash, undo, update } from "./history";
 import { list } from "./list";
 import { clean, remove, reset, switchBranch, sync } from "./maintenance";
 import { open } from "./open";
@@ -29,7 +29,7 @@ Start and finish work
 
 Fix history
   gith undo                          undo the last commit, keep its changes staged (not if pushed)
-  gith amend                         fold staged changes into the last commit (if pushed: asks, then force-pushes)
+  gith save                          fold staged changes into the last commit; pushes if origin has this branch and differs (asks before a force-push)
   gith squash -limit <n> [-m <msg>]  combine the last n commits into one (keeps the oldest message)
 
 Save and reset work
@@ -118,8 +118,8 @@ try {
     case "undo":
       undo(parseFlags(rest));
       break;
-    case "amend":
-      await amend(parseFlags(rest));
+    case "save":
+      await save(parseFlags(rest));
       break;
     case "squash":
       squash(parseFlags(rest));
