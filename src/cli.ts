@@ -36,6 +36,7 @@ Start and finish work
   gith switch --release | --hotfix   switch to the newest release/* or hotfix/* (local or origin); -r <v> / -h <v> for one version
   gith update                        merge origin/develop into this work branch
   gith finish --current-release | --current-hotfix  release the newest release/* or hotfix/*: version, changelog, merge to main, tag, back to develop
+  gith merge --develop               merge this branch into develop
   gith merge                         pick the branch to merge, then the target (develop, release/*, hotfix/*)
   gith merge [-r <v> | -h <v>]       merge this branch into develop, release/<v> or hotfix/<v>
   gith merge --current-release       merge this branch into the newest release (local or origin)

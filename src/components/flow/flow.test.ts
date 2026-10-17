@@ -293,3 +293,49 @@ describe("finish --current-release", () => {
     }
   }, 60_000);
 });
+
+describe("merge --develop", () => {
+  const CLI = path.resolve(import.meta.dir, "../../cli.ts");
+  function git(cwd: string, args: string[]) {
+    return spawnSync("git", args, { cwd, encoding: "utf8" });
+  }
+  function gith(cwd: string, args: string[]) {
+    return spawnSync(process.execPath, [CLI, ...args], {
+      cwd,
+      encoding: "utf8",
+    });
+  }
+  test("merges the current work branch into develop and removes it after a yes", () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "gith-merge-develop-"));
+    try {
+      const repo = path.join(tmp, "repo");
+      fs.mkdirSync(repo);
+      git(tmp, ["init", "--bare", path.join(tmp, "remote.git")]);
+      git(repo, ["init", "-b", "main"]);
+      git(repo, ["config", "user.email", "test@example.com"]);
+      git(repo, ["config", "user.name", "Test"]);
+      fs.writeFileSync(path.join(repo, "a.txt"), "a");
+      git(repo, ["add", "."]);
+      git(repo, ["commit", "-m", "initial"]);
+      git(repo, ["remote", "add", "origin", "../remote.git"]);
+      git(repo, ["push", "-u", "origin", "main"]);
+      git(repo, ["branch", "develop"]);
+      git(repo, ["push", "-u", "origin", "develop"]);
+      git(repo, ["switch", "-c", "work", "develop"]);
+      fs.writeFileSync(path.join(repo, "w.txt"), "w");
+      git(repo, ["add", "."]);
+      git(repo, ["commit", "-m", "work"]);
+      git(repo, ["push", "-u", "origin", "work"]);
+
+      const done = gith(repo, ["merge", "--develop", "--yes"]);
+      expect(done.status).toBe(0);
+      expect(git(repo, ["show", "develop:w.txt"]).status).toBe(0);
+      expect(git(repo, ["branch", "--list", "work"]).stdout.trim()).toBe("");
+      expect(
+        git(repo, ["ls-remote", "--heads", "origin", "work"]).stdout.trim(),
+      ).toBe("");
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  }, 60_000);
+});

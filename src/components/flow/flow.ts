@@ -42,13 +42,15 @@ export function create(flags: Flags): void {
 export async function merge(flags: Flags): Promise<void> {
   if (flags.size === 0) return mergePick();
   const kind = onlyOne(flags, [
+    "develop",
     "release",
     "hotfix",
     "current-release",
     "current-hotfix",
   ]);
   let target = "develop";
-  if (kind === "current-release") target = newestContainer("release");
+  if (kind === "develop") target = "develop";
+  else if (kind === "current-release") target = newestContainer("release");
   else if (kind === "current-hotfix") target = newestContainer("hotfix");
   else if (kind) {
     const version = flags.get(kind) ?? "";
