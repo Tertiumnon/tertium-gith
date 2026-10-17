@@ -1,7 +1,7 @@
-import { createInterface } from "node:readline/promises";
 import { onlyOne, parseLimit } from "../args/args";
 import type { Flags } from "../args/args.types";
 import { createBranch } from "../flow/flow";
+import { newestContainer } from "../flow/flow.utils";
 import {
   assertBranchName,
   assertCleanTree,
@@ -11,8 +11,8 @@ import {
   hasOnOrigin,
   isDetached,
 } from "../git/git";
-import { confirm } from "../prompt/prompt";
-import { isContainer } from "../rules/rules";
+import { confirm, select } from "../prompt/prompt";
+import { containerName, isContainer } from "../rules/rules";
 import { DEFAULT_DAYS } from "./maintenance.constants";
 import type { Option, Scope, Sides } from "./maintenance.types";
 import {
@@ -31,7 +31,25 @@ import {
 // gith switch -commit <sha>: detaches HEAD at that commit, after the tracked files are clean.
 // On a detached HEAD, gith switch -b creates the branch at the current commit, so new commits
 // stay on it.
-export function switchBranch(flags: Flags): void {
+export async function switchBranch(flags: Flags): Promise<void> {
+  if (flags.size === 0) return switchPick();
+  // --release and --hotfix go to the newest existing branch; -r <v> and -h <v> to that version.
+  // They only switch: a branch that does not exist is an error, never created here.
+  const kind = onlyOne(flags, ["release", "hotfix"]);
+  if (kind !== undefined) {
+    if (flags.size > 1)
+      throw new Error(
+        `usage: gith switch --${kind} | -${kind === "release" ? "r" : "h"} <version>`,
+      );
+    const version = flags.get(kind) ?? "";
+    const name =
+      version === "" ? newestContainer(kind) : containerName(kind, version);
+    if (!hasLocal(name) && !hasOnOrigin(name)) {
+      throw new Error(`'${name}' does not exist, locally or on origin.`);
+    }
+    gitArgs(["switch", "--", name]);
+    return;
+  }
   const commit = flags.get("commit");
   if (commit !== undefined) {
     if (flags.has("branch") || flags.size > 1)
@@ -71,30 +89,6 @@ export function candidates(
       (name) => notContainer(name) && notCurrent(name) && remote.includes(name),
     )
     .map((name) => ({ name, label: `${name}  (local + origin)` }));
-}
-
-// Turns an answer like "1,3-4" into zero-based indexes. Duplicates are dropped.
-export function parseSelection(answer: string, count: number): number[] {
-  const indexes = new Set<number>();
-  for (const part of answer
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean)) {
-    const range = /^(\d+)-(\d+)$/.exec(part);
-    const from = Number(range ? range[1] : part);
-    const to = Number(range ? range[2] : part);
-    if (
-      !Number.isInteger(from) ||
-      !Number.isInteger(to) ||
-      from < 1 ||
-      to > count ||
-      from > to
-    ) {
-      throw new Error(`'${part}' is not a choice from 1 to ${count}.`);
-    }
-    for (let n = from; n <= to; n++) indexes.add(n - 1);
-  }
-  return [...indexes];
 }
 
 // Reads `for-each-ref --format=%(refname)|%(committerdate:unix)` over local and origin branches.
@@ -158,8 +152,9 @@ export function detachedOptions(
 
 // gith remove -b <branch> [--local | --remote]: removes the branch here and on origin, or one side.
 // gith remove --branch [--local | --remote]: lists the branches and asks which to remove.
+// Without -b, remove picks from the list, the same as --branch.
 export async function remove(flags: Flags): Promise<void> {
-  const name = flags.get("branch");
+  const name = flags.get("branch") ?? "";
   const side = onlyOne(flags, ["local", "remote"]);
   const scope: Scope = side ?? "pair";
   const obsoleteOn = flags.has("obsolete");
@@ -175,7 +170,7 @@ export async function remove(flags: Flags): Promise<void> {
       ? "usage: gith remove --detached [--all | -l <n>]"
       : "usage: gith remove --obsolete [--local] [-days <n>] [-l <n>]";
     if (
-      name !== undefined ||
+      flags.has("branch") ||
       (obsoleteOn && side === "remote") ||
       (detachedOn && side)
     )
@@ -183,10 +178,6 @@ export async function remove(flags: Flags): Promise<void> {
     if (detachedOn) return detached(flags);
     return obsolete(flags, side === "local" ? "local" : "pair");
   }
-  if (name === undefined)
-    throw new Error(
-      "usage: gith remove -b <branch> [--local | --remote], or gith remove --branch to pick",
-    );
 
   if (name) {
     if (flags.has("limit"))
@@ -251,31 +242,68 @@ export async function clean(flags: Flags): Promise<void> {
 }
 
 // Lists the options (the first `limit`, or all) and reads which ones to remove.
-async function choose(options: Option[], limit?: number): Promise<string[]> {
+const REMOVE_ACTION = {
+  empty: "No branches to remove.",
+  prompt: "Remove which?",
+  multi: true,
+};
+
+// Lists the options and lets the user pick with the arrow keys. Returns the picked names.
+async function choose(
+  options: Option[],
+  limit?: number,
+  action = REMOVE_ACTION,
+): Promise<string[]> {
   if (options.length === 0) {
-    console.log("No branches to remove.");
+    console.log(action.empty);
     return [];
   }
   const shown = limit === undefined ? options : options.slice(0, limit);
-  for (const [i, option] of shown.entries()) {
-    console.log(`  ${i + 1}. ${option.label}`);
-  }
   if (shown.length < options.length) {
     console.log(
       `showing ${shown.length} of ${options.length}; -limit <n> shows more`,
     );
   }
-  const rl = createInterface({ input: process.stdin, output: process.stdout });
-  try {
-    const answer = await rl.question(
-      "Remove which? Numbers or ranges, e.g. 1,3-4 (empty cancels): ",
+  return select(action.prompt, shown, action.multi);
+}
+
+// gith switch: lists local and origin branches, and switches to the one picked.
+function switchOptions(): Option[] {
+  const local = localBranches();
+  const origin = remoteBranches();
+  const current = currentBranch();
+  const names = [...new Set([...local, ...origin])].sort((a, b) =>
+    a.localeCompare(b),
+  );
+  return names.map((name) => {
+    const where =
+      local.includes(name) && origin.includes(name)
+        ? "local + origin"
+        : local.includes(name)
+          ? "local"
+          : "origin";
+    return {
+      name,
+      label: `${name}  (${where}${name === current ? ", current" : ""})`,
+    };
+  });
+}
+
+async function switchPick(): Promise<void> {
+  if (!process.stdin.isTTY) {
+    throw new Error(
+      "pass a branch name with -b, e.g. gith switch -b <branch>; the list needs a terminal",
     );
-    return parseSelection(answer, shown.length).map(
-      (i) => shown[i]?.name ?? "",
-    );
-  } finally {
-    rl.close();
   }
+  const picked = await choose(switchOptions(), undefined, {
+    empty: "No branches.",
+    prompt: "Switch to which?",
+    multi: false,
+  });
+  if (picked.length === 0) return;
+  if (picked.length > 1)
+    throw new Error("pick exactly one branch to switch to.");
+  gitArgs(["switch", "--", picked[0] ?? ""]);
 }
 
 // The picker asks a question, so it needs a terminal. Checked before any listing.
@@ -315,6 +343,12 @@ async function removeBranches(
     return { name, local, origin };
   });
   if (plan.length > 0) console.log("Will remove:");
+  for (const { name, local, origin } of plan) {
+    const sides = [local && "local", origin && "origin"]
+      .filter(Boolean)
+      .join(" + ");
+    console.log(`  ${name}  (${sides})`);
+  }
   if (
     ask &&
     plan.length > 0 &&
@@ -326,12 +360,6 @@ async function removeBranches(
   ) {
     console.log("Nothing removed.");
     return;
-  }
-  for (const { name, local, origin } of plan) {
-    const sides = [local && "local", origin && "origin"]
-      .filter(Boolean)
-      .join(" + ");
-    console.log(`  ${name}  (${sides})`);
   }
   for (const { name, local, origin } of plan) {
     if (local) gitArgs(["branch", "-d", "--", name]);
