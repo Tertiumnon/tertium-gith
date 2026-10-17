@@ -50,26 +50,26 @@ function yesNo(value: boolean): string {
 export function list(flags: Flags): void {
   const kind = onlyOne(flags, ["tags", "commits"]);
   if (!kind)
-    throw new Error("usage: gith list --tags | --commits [-limit <n>]");
+    throw new Error(
+      "usage: gith list --tags | --commits [--graph] [-limit <n>]",
+    );
+  if (flags.has("graph") && kind !== "commits")
+    throw new Error("--graph only applies to --commits.");
   const limit = parseLimit(flags) ?? DEFAULT_LIMIT;
-  if (kind === "commits") commits(limit);
+  if (kind === "commits") commits(limit, flags.has("graph"));
   else tags(limit);
 }
 
 // Newest first, from the current branch.
-function commits(limit: number): void {
+function commits(limit: number, graph: boolean): void {
   if (!hasHead()) {
     console.log("No commits.");
     return;
   }
-  console.log(
-    captureArgs([
-      "log",
-      `-n${limit}`,
-      "--date=short",
-      "--format=%h  %ad  %an  %s",
-    ]),
-  );
+  const shape = graph
+    ? ["--graph", "--oneline", "--decorate"]
+    : ["--date=short", "--format=%h  %ad  %an  %s"];
+  console.log(captureArgs(["log", `-n${limit}`, ...shape]));
 }
 
 // False on a repository with no commits yet, where HEAD does not resolve.

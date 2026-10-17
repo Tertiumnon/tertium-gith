@@ -32,8 +32,9 @@ Usage:
   gith remove -b [<branch>] --remote   also delete on origin; no name lists origin branches
   gith remove -b [<branch>] --both     delete locally, then on origin; no name lists pairs
   gith rm                    alias of remove
+  gith remove --obsolete [-l <n>]  pick local branches whose origin copy was deleted
   gith list --tags [-l <n>]  tags with a local and origin column (newest 5 by default)
-  gith list --commits [-l <n>]  newest commits on this branch (default 5)
+  gith list --commits [--graph] [-l <n>]  newest commits on this branch (default 5)
   -limit <n> (-l, --limit) caps any listing: list, and the remove picker (default: all)
   gith status                show branch vs origin, and staged, unstaged and untracked counts
   gith update                merge origin/develop into this work branch

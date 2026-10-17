@@ -106,15 +106,22 @@ function remoteBranches(): string[] {
     .map((line) => (line.split("\t")[1] ?? "").replace(/^refs\/heads\//, ""));
 }
 
-// Lists the candidates (the first `limit`, or all) and reads which ones to remove.
-async function pick(scope: Scope, limit?: number): Promise<string[]> {
-  const remote = scope === "local" ? [] : remoteBranches();
-  const options = candidates(
-    scope,
-    localBranches(),
-    remote,
-    capture("rev-parse --abbrev-ref HEAD"),
-  );
+// Local branches whose origin copy was deleted. After `fetch --prune`, git marks their
+// upstream as [gone]. Containers and the checked-out branch are never offered.
+export function obsoleteOf(forEachRef: string, current: string): Option[] {
+  return forEachRef
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => {
+      const [name = "", track = ""] = line.split("|");
+      return { name, gone: track.includes("[gone]") };
+    })
+    .filter(({ name, gone }) => gone && name !== current && !isContainer(name))
+    .map(({ name }) => ({ name, label: `${name}  (origin deleted)` }));
+}
+
+// Lists the options (the first `limit`, or all) and reads which ones to remove.
+async function choose(options: Option[], limit?: number): Promise<string[]> {
   if (options.length === 0) {
     console.log("No branches to remove.");
     return [];
@@ -146,6 +153,19 @@ async function pick(scope: Scope, limit?: number): Promise<string[]> {
   }
 }
 
+// Lists the candidates for a scope and reads which ones to remove.
+function pick(scope: Scope, limit?: number): Promise<string[]> {
+  const remote = scope === "local" ? [] : remoteBranches();
+  return choose(
+    candidates(scope, localBranches(), remote, currentBranch()),
+    limit,
+  );
+}
+
+function currentBranch(): string {
+  return capture("rev-parse --abbrev-ref HEAD");
+}
+
 // Deletes the local branch (git branch -d refuses unmerged ones), the origin branch, or both.
 function removeBranches(scope: Scope, names: string[]): void {
   for (const name of names) {
@@ -158,9 +178,21 @@ function removeBranches(scope: Scope, names: string[]): void {
 // gith remove -b [--remote | --both]: lists the branches and asks which to remove.
 export async function remove(flags: Flags): Promise<void> {
   const name = flags.get("branch");
+  const picked = onlyOne(flags, ["remote", "both"]);
+  if (flags.has("obsolete")) {
+    if (name !== undefined || picked)
+      throw new Error("usage: gith remove --obsolete [-l <n>]");
+    const forEachRef = captureArgs([
+      "for-each-ref",
+      "--format=%(refname:short)|%(upstream:track)",
+      "refs/heads",
+    ]);
+    const options = obsoleteOf(forEachRef, currentBranch());
+    removeBranches("local", await choose(options, parseLimit(flags)));
+    return;
+  }
   if (name === undefined)
     throw new Error("usage: gith remove -b [<branch>] [--remote | --both]");
-  const picked = onlyOne(flags, ["remote", "both"]);
   const scope: Scope = picked ?? "local";
 
   if (name) {
