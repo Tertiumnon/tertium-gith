@@ -1,4 +1,3 @@
-#!/usr/bin/env bun
 import { exit } from "node:process";
 import { onlyOne, parseFlags } from "./args";
 import { create, merge } from "./commands";

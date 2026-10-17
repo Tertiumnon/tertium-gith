@@ -1,10 +1,13 @@
 import { readFileSync } from "node:fs";
-import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 // The version from package.json, so the printed version always matches the release.
 export function readVersion(): string {
   const pkg = JSON.parse(
-    readFileSync(path.join(import.meta.dir, "..", "package.json"), "utf8"),
+    readFileSync(
+      fileURLToPath(new URL("../package.json", import.meta.url)),
+      "utf8",
+    ),
   ) as { version?: string };
   return pkg.version ?? "unknown";
 }

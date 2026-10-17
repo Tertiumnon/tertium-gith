@@ -17,7 +17,14 @@ Git helper: the branch flow from [git-convention](https://github.com/Tertiumnon/
 
 ## Install
 
-`gith` runs on [Bun](https://bun.com) and needs git on the PATH. It is not on npm yet. From a clone of this repository, run `bun link` to put `gith` on your PATH.
+Needs [Node.js](https://nodejs.org) 18 or newer and git on the PATH.
+
+```bash
+npm install -g @tertium/gith
+gith --version
+```
+
+From a clone of this repository, build the CLI and link it: `bun install`, `bun run build`, `npm link`.
 
 ## Usage
 
@@ -194,4 +201,4 @@ bun run typecheck   # tsc --noEmit
 
 ## Publishing
 
-`.github/workflows/publish.yml` runs lint, typecheck and tests, then `npm publish --access public`, whenever a `v*` tag is pushed. It uses npm trusted publishing (OIDC), so no npm token is stored in the repo. Bump the version with `gith release` or `npm version`, which creates the tag.
+The package ships one built file, `bin/gith.js`, which runs on Node. `npm pack --dry-run` lists what would be published. `prepublishOnly` runs lint, typecheck, the tests and the build before any publish. `.github/workflows/publish.yml` runs the same checks, then `npm publish --access public`, whenever a `v*` tag is pushed. It uses npm trusted publishing (OIDC), so no npm token is stored in the repo. Bump the version with `gith release` or `npm version`, which creates the tag.
