@@ -1,5 +1,5 @@
 import { execSync } from "node:child_process";
-import { assertClean, assertSynced, capture, git } from "./git";
+import { assertCleanTree, assertSynced, capture, git, isDryRun } from "./git";
 
 export type ReleaseKind = "patch" | "minor" | "major";
 const KINDS: string[] = ["patch", "minor", "major"];
@@ -7,8 +7,8 @@ const KINDS: string[] = ["patch", "minor", "major"];
 // Publishes a version. Patch goes from main (hotfix-style), minor and major from develop.
 export function release(kind: string | undefined): void {
   if (!kind || !KINDS.includes(kind))
-    throw new Error("usage: gf release <patch|minor|major>");
-  assertClean();
+    throw new Error("usage: gith release <patch|minor|major>");
+  assertCleanTree();
   if (kind === "patch") {
     releasePatch();
   } else {
@@ -18,6 +18,7 @@ export function release(kind: string | undefined): void {
 
 function npmVersion(kind: ReleaseKind): void {
   console.log(`> npm version ${kind}`);
+  if (isDryRun()) return;
   execSync(`npm version ${kind}`, { stdio: "inherit" });
 }
 

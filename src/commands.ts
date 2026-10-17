@@ -1,10 +1,11 @@
-import { execSync } from "node:child_process";
 import { type Flags, onlyOne } from "./args";
 import {
-  assertClean,
+  assertCleanTree,
   assertSynced,
   capture,
+  captureArgs,
   git,
+  gitArgs,
   hasOnOrigin,
   listTags,
 } from "./git";
@@ -15,33 +16,41 @@ import {
   isContainer,
   isTarget,
 } from "./rules";
-import { nextVersion } from "./versions";
+import { compare, nextVersion, parseSemver, type Semver } from "./versions";
 
-// gf create -b <branch> | -r [version] | -h [version]
+// gith create -b <branch> | -r [version] | -h [version]
+// Creates the branch and pushes it, but never switches: the current branch stays checked out.
 export function create(flags: Flags): void {
   const kind = onlyOne(flags, ["branch", "release", "hotfix"]);
   if (!kind)
     throw new Error(
-      "usage: gf create -b <branch> | -r [version] | -h [version]",
+      "usage: gith create -b <branch> | -r [version] | -h [version]",
     );
   const value = flags.get(kind) ?? "";
   if (kind === "branch") {
-    if (!value) throw new Error("usage: gf create -b <branch>");
-    start(value);
+    if (!value) throw new Error("usage: gith create -b <branch>");
+    createBranch(value);
     return;
   }
   open(kind, value || nextContainerVersion(kind));
 }
 
-// gf merge [-r <version> | -h <version>]: merges this branch into develop by default.
+// gith merge [-r <version> | -h <version>]: merges this branch into develop by default.
 export function merge(flags: Flags): void {
-  const kind = onlyOne(flags, ["release", "hotfix"]);
+  const kind = onlyOne(flags, [
+    "release",
+    "hotfix",
+    "current-release",
+    "current-hotfix",
+  ]);
   let target = "develop";
-  if (kind) {
+  if (kind === "current-release") target = newestContainer("release");
+  else if (kind === "current-hotfix") target = newestContainer("hotfix");
+  else if (kind) {
     const version = flags.get(kind) ?? "";
     if (!version) {
       throw new Error(
-        `usage: gf merge -${kind === "release" ? "r" : "h"} <version>`,
+        `usage: gith merge -${kind === "release" ? "r" : "h"} <version>`,
       );
     }
     target = containerName(kind, version);
@@ -49,15 +58,46 @@ export function merge(flags: Flags): void {
   mergeInto(target);
 }
 
-// Starts a work branch named by its goal, from the latest develop.
-function start(goal: string): void {
+// The release/* or hotfix/* branch with the highest version, among the local branches and the
+// ones on origin. Versions compare as numbers, so 1.10.0 is newer than 1.9.0.
+function newestContainer(kind: ContainerKind): string {
+  const prefix = `${kind}/`;
+  const local = captureArgs([
+    "for-each-ref",
+    "--format=%(refname:short)",
+    "refs/heads",
+  ]).split("\n");
+  const origin = captureArgs(["ls-remote", "--heads", "origin"])
+    .split("\n")
+    .map((line) => (line.split("\t")[1] ?? "").replace(/^refs\/heads\//, ""));
+  const candidates = new Set(
+    [...local, ...origin].filter((name) => name.startsWith(prefix)),
+  );
+  let newest: { name: string; version: Semver } | undefined;
+  for (const name of candidates) {
+    const version = parseSemver(name.slice(prefix.length));
+    if (version && (!newest || compare(version, newest.version) > 0))
+      newest = { name, version };
+  }
+  if (!newest)
+    throw new Error(`no ${kind} branch exists, locally or on origin.`);
+  return newest.name;
+}
+
+// Creates a work branch named by its goal, from origin/develop, and pushes it with upstream
+// tracking. Leaves the current branch checked out.
+// `from` is the commit to start from; by default the latest origin/develop.
+export function createBranch(goal: string, from?: string): void {
   if (isContainer(goal))
     throw new Error(`'${goal}' is a container name; pick a goal.`);
-  assertClean();
-  git("checkout develop");
-  git("pull");
-  git(`checkout -b ${goal}`);
-  git(`push -u origin ${goal}`);
+  if (hasOnOrigin(goal)) throw new Error(`'${goal}' already exists on origin.`);
+  if (from === undefined) {
+    gitArgs(["fetch", "origin", "develop"]);
+    gitArgs(["branch", goal, "origin/develop"]);
+  } else {
+    gitArgs(["branch", goal, from]);
+  }
+  gitArgs(["push", "-u", "origin", goal]);
 }
 
 // Next version after the latest tag (local or origin): release bumps the minor,
@@ -75,15 +115,14 @@ function nextContainerVersion(kind: ContainerKind): string {
   return version;
 }
 
-// Creates release/<version> from develop, or hotfix/<version> from main.
+// Creates release/<version> from develop, or hotfix/<version> from main, without switching.
 function open(kind: ContainerKind, version: string): void {
   const name = containerName(kind, version);
   if (hasOnOrigin(name)) throw new Error(`'${name}' already exists on origin.`);
-  assertClean();
-  git(`checkout ${containerBase(kind)}`);
-  git("pull");
-  git(`checkout -b ${name}`);
-  git(`push -u origin ${name}`);
+  const base = containerBase(kind);
+  gitArgs(["fetch", "origin", base]);
+  gitArgs(["branch", name, `origin/${base}`]);
+  gitArgs(["push", "-u", "origin", name]);
 }
 
 // Merges the current work branch into the target branch.
@@ -96,7 +135,7 @@ function mergeInto(target: string): void {
     throw new Error(`already on '${target}', nothing to merge.`);
   if (!hasOnOrigin(target))
     throw new Error(`'${target}' does not exist on origin.`);
-  assertClean();
+  assertCleanTree();
 
   if (hasOnOrigin(source)) git(`pull origin ${source}`);
   git(`push -u origin ${source}`);
@@ -106,9 +145,9 @@ function mergeInto(target: string): void {
   git("pull");
   git(`checkout ${source}`);
   try {
-    execSync(`git merge ${target} --no-edit`, { stdio: "inherit" });
+    gitArgs(["merge", target, "--no-edit"]);
   } catch {
-    execSync("git merge --abort", { stdio: "inherit" });
+    gitArgs(["merge", "--abort"]);
     throw new Error(
       `merging '${target}' into '${source}' conflicts; resolve on '${source}' and retry.`,
     );
