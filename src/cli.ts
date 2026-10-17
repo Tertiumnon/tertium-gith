@@ -2,11 +2,13 @@
 import { exit } from "node:process";
 import { onlyOne, parseFlags } from "./args";
 import { create, merge } from "./commands";
+import { doctor } from "./doctor";
 import { isDryRun, setDryRun, setVerbose } from "./git";
 import { amend, undo, update } from "./history";
 import { setup } from "./hooks";
 import { list } from "./list";
 import { clean, remove, reset, switchBranch, sync } from "./maintenance";
+import { open } from "./open";
 import { release } from "./release";
 import { stash, unstash } from "./stash";
 import { status } from "./status";
@@ -42,6 +44,8 @@ Usage:
   gith amend                 add staged changes to the last commit, keep its message (not if pushed)
   gith stash [-m <msg>]      stash changes, including untracked files
   gith unstash               bring back the latest stash
+  gith open                  open this repository's origin in the browser
+  gith doctor                check the repo is ready for the branch flow (exit 1 on failures)
   gith tree [-l <n>]         working trees of this repo: path, branch, HEAD (current marked *)
   gith sync                  fetch all remotes, tags, and prune stale refs
   gith clean                 remove untracked files and directories (keeps ignored)
@@ -109,6 +113,12 @@ try {
       break;
     case "unstash":
       unstash(parseFlags(rest));
+      break;
+    case "open":
+      open(parseFlags(rest));
+      break;
+    case "doctor":
+      if (!doctor(parseFlags(rest))) exit(1);
       break;
     case "tree":
       tree(parseFlags(rest));
