@@ -86,12 +86,6 @@ export function listTags(): string[] {
   return [...local, ...remote].filter(Boolean);
 }
 
-export function assertClean(): void {
-  if (capture("status --porcelain")) {
-    throw new Error("uncommitted changes; commit or stash them first.");
-  }
-}
-
 // Tracked files only: untracked files do not block. Refreshes the index first, so files that
 // only differ in stat information (line endings, file times) are not reported as changed.
 export function assertCleanTree(): void {

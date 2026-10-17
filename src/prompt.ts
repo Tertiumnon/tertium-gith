@@ -1,6 +1,13 @@
 import { createInterface } from "node:readline/promises";
 import { isDryRun } from "./git";
 
+// Set by --yes: every question is answered yes, for scripts. Still shown in dry runs.
+let assumeYes = false;
+
+export function setAssumeYes(on: boolean): void {
+  assumeYes = on;
+}
+
 // Asks a yes/no question. Enter means yes. Needs a terminal, so nothing is confirmed by accident.
 // A dry run assumes yes, and only says what it would ask.
 export async function confirm(question: string): Promise<boolean> {
@@ -8,8 +15,11 @@ export async function confirm(question: string): Promise<boolean> {
     console.log(`dry run: would ask: ${question}`);
     return true;
   }
+  if (assumeYes) return true;
   if (!process.stdin.isTTY)
-    throw new Error("this needs a terminal to confirm.");
+    throw new Error(
+      "this needs a terminal to confirm; pass --yes to skip the question.",
+    );
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   try {
     const answer = (await rl.question(question)).trim().toLowerCase();

@@ -1,6 +1,6 @@
 import { type Flags, onlyOne } from "./args";
 import {
-  assertClean,
+  assertCleanTree,
   assertSynced,
   capture,
   captureArgs,
@@ -135,7 +135,7 @@ function mergeInto(target: string): void {
     throw new Error(`already on '${target}', nothing to merge.`);
   if (!hasOnOrigin(target))
     throw new Error(`'${target}' does not exist on origin.`);
-  assertClean();
+  assertCleanTree();
 
   if (hasOnOrigin(source)) git(`pull origin ${source}`);
   git(`push -u origin ${source}`);

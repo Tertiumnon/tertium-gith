@@ -54,19 +54,19 @@ describe("gith switch, remove, sync, clean", () => {
 
       // remove: a pair by default, --local and --remote for one side, rm as alias
       git(repo, ["push", "origin", "feature"]);
-      expect(gith(repo, ["remove", "-b", "feature", "--remote"]).status).toBe(
-        0,
-      );
+      expect(
+        gith(repo, ["remove", "-b", "feature", "--remote", "--yes"]).status,
+      ).toBe(0);
       expect(branchExists(repo, "feature")).toBe(true);
       expect(remoteBranchExists(repo, "feature")).toBe(false);
 
       git(repo, ["push", "origin", "feature"]);
-      expect(gith(repo, ["remove", "-b", "feature"]).status).toBe(0);
+      expect(gith(repo, ["remove", "-b", "feature", "--yes"]).status).toBe(0);
       expect(branchExists(repo, "feature")).toBe(false);
       expect(remoteBranchExists(repo, "feature")).toBe(false);
 
       git(repo, ["branch", "local-only"]);
-      expect(gith(repo, ["rm", "-b", "local-only"]).status).toBe(0);
+      expect(gith(repo, ["rm", "-b", "local-only", "--yes"]).status).toBe(0);
       expect(branchExists(repo, "local-only")).toBe(false);
 
       // containers and missing flags are refused
@@ -97,7 +97,7 @@ describe("gith switch, remove, sync, clean", () => {
       fs.mkdirSync(path.join(repo, "untracked-dir"));
       fs.writeFileSync(path.join(repo, "untracked.txt"), "x");
       fs.writeFileSync(path.join(repo, "untracked-dir", "file.txt"), "x");
-      expect(gith(repo, ["clean"]).status).toBe(0);
+      expect(gith(repo, ["clean", "--yes"]).status).toBe(0);
       expect(fs.existsSync(path.join(repo, "untracked.txt"))).toBe(false);
       expect(fs.existsSync(path.join(repo, "untracked-dir"))).toBe(false);
 
@@ -106,7 +106,7 @@ describe("gith switch, remove, sync, clean", () => {
       fs.writeFileSync(path.join(repo, "staged.txt"), "x");
       git(repo, ["add", "staged.txt"]);
       fs.writeFileSync(path.join(repo, "untracked.txt"), "x");
-      expect(gith(repo, ["reset"]).status).toBe(0);
+      expect(gith(repo, ["reset", "--yes"]).status).toBe(0);
       expect(fs.readFileSync(path.join(repo, "tracked.txt"), "utf8")).toBe(
         "tracked",
       );
@@ -201,7 +201,7 @@ describe("--dry-run", () => {
 
       fs.writeFileSync(path.join(repo, "untracked.txt"), "x");
       const clean = gith(repo, ["clean", "--dry-run"]);
-      expect(clean.stdout).toContain("Would remove untracked.txt");
+      expect(clean.stdout).toContain("untracked.txt");
       expect(fs.existsSync(path.join(repo, "untracked.txt"))).toBe(true);
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });

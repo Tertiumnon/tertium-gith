@@ -1,5 +1,5 @@
 import { execSync } from "node:child_process";
-import { assertClean, assertSynced, capture, git, isDryRun } from "./git";
+import { assertCleanTree, assertSynced, capture, git, isDryRun } from "./git";
 
 export type ReleaseKind = "patch" | "minor" | "major";
 const KINDS: string[] = ["patch", "minor", "major"];
@@ -8,7 +8,7 @@ const KINDS: string[] = ["patch", "minor", "major"];
 export function release(kind: string | undefined): void {
   if (!kind || !KINDS.includes(kind))
     throw new Error("usage: gith release <patch|minor|major>");
-  assertClean();
+  assertCleanTree();
   if (kind === "patch") {
     releasePatch();
   } else {

@@ -10,7 +10,6 @@ import {
   hasLocal,
   hasOnOrigin,
   isDetached,
-  isDryRun,
 } from "./git";
 import { confirm } from "./prompt";
 import { isContainer } from "./rules";
@@ -264,7 +263,11 @@ function currentBranch(): string {
 // Deletes the local branch (git branch -d refuses unmerged ones) and the origin branch.
 // A pair removes whichever sides exist, so a branch that only lives here is still removed.
 // Every removal prints what it will remove before running anything.
-function removeBranches(scope: Scope, names: string[]): void {
+async function removeBranches(
+  scope: Scope,
+  names: string[],
+  ask = true,
+): Promise<void> {
   const plan = names.map((name) => {
     if (scope === "remote") return { name, local: false, origin: true };
     if (scope === "local") return { name, local: true, origin: false };
@@ -276,6 +279,18 @@ function removeBranches(scope: Scope, names: string[]): void {
     return { name, local, origin };
   });
   if (plan.length > 0) console.log("Will remove:");
+  if (
+    ask &&
+    plan.length > 0 &&
+    !(await confirm(
+      plan.length === 1
+        ? "Remove this branch? [Y/n] "
+        : `Remove these ${plan.length} branches? [Y/n] `,
+    ))
+  ) {
+    console.log("Nothing removed.");
+    return;
+  }
   for (const { name, local, origin } of plan) {
     const sides = [local && "local", origin && "origin"]
       .filter(Boolean)
@@ -340,9 +355,10 @@ async function obsolete(flags: Flags, scope: "pair" | "local"): Promise<void> {
     console.log("Nothing removed.");
     return;
   }
-  removeBranches(
+  await removeBranches(
     scope,
     shown.map((option) => option.name),
+    false,
   );
 }
 
@@ -351,7 +367,7 @@ async function detached(flags: Flags): Promise<void> {
   requireTerminal();
   gitArgs(["fetch", "--prune", "origin"]);
   const options = detachedOptions(readTimes(), currentBranch());
-  removeBranches("local", await choose(options, parseLimit(flags)));
+  await removeBranches("local", await choose(options, parseLimit(flags)));
 }
 
 // gith remove -b <branch> [--local | --remote]: removes the branch here and on origin, or one side.
@@ -390,11 +406,11 @@ export async function remove(flags: Flags): Promise<void> {
     assertBranchName(name);
     if (isContainer(name))
       throw new Error(`'${name}' is a container and cannot be removed.`);
-    removeBranches(scope, [name]);
+    await removeBranches(scope, [name]);
     return;
   }
   requireTerminal();
-  removeBranches(scope, await pick(scope, parseLimit(flags)));
+  await removeBranches(scope, await pick(scope, parseLimit(flags)));
 }
 
 // gith sync: fetches every remote with tags, pruning deleted refs.
@@ -403,24 +419,53 @@ export function sync(flags: Flags): void {
   gitArgs(["fetch", "--all", "--tags", "--prune"]);
 }
 
-// gith reset: discards uncommitted changes on this branch and removes untracked files
-// and directories. Ignored files are kept. Nothing here can be undone.
-export function reset(flags: Flags): void {
-  noFlags(flags, "reset");
-  if (isDryRun()) {
-    console.log(captureArgs(["status", "--short"]) || "No changes to discard.");
-  }
-  gitArgs(["reset", "--hard"]);
-  clean(flags);
+// Untracked paths that clean would remove, as git reports them.
+function untrackedPaths(): string[] {
+  return captureArgs(["clean", "-nd"])
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => line.replace(/^Would remove /, ""));
 }
 
-// gith clean: removes untracked files and directories. Ignored files are kept.
-export function clean(flags: Flags): void {
+// gith reset: discards every uncommitted change on this branch, and removes untracked files and
+// directories (ignored files are kept). Lists what it will discard, and asks first.
+export async function reset(flags: Flags): Promise<void> {
+  noFlags(flags, "reset");
+  const changes = captureArgs(["status", "--short"])
+    .split("\n")
+    .filter(Boolean);
+  const untracked = untrackedPaths();
+  if (changes.length === 0 && untracked.length === 0) {
+    console.log("Nothing to discard.");
+    return;
+  }
+  console.log("Will discard:");
+  for (const line of changes) console.log(`  ${line}`);
+  for (const path of untracked) console.log(`  ?? ${path}`);
+  if (!(await confirm("Discard all of this? It cannot be undone. [Y/n] "))) {
+    console.log("Nothing discarded.");
+    return;
+  }
+  gitArgs(["reset", "--hard"]);
+  if (untracked.length > 0) gitArgs(["clean", "-fd"]);
+}
+
+// gith clean: removes untracked files and directories (ignored files are kept). Lists what it
+// will remove, and asks first.
+export async function clean(flags: Flags): Promise<void> {
   noFlags(flags, "clean");
-  if (isDryRun()) {
-    console.log(
-      captureArgs(["clean", "-nd"]) || "No untracked files to remove.",
-    );
+  const untracked = untrackedPaths();
+  if (untracked.length === 0) {
+    console.log("No untracked files to remove.");
+    return;
+  }
+  console.log("Will remove:");
+  for (const path of untracked) console.log(`  ${path}`);
+  if (
+    !(await confirm(`Remove these ${untracked.length} untracked paths? [Y/n] `))
+  ) {
+    console.log("Nothing removed.");
+    return;
   }
   gitArgs(["clean", "-fd"]);
 }

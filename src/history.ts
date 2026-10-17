@@ -1,5 +1,11 @@
 import { type Flags, parseLimit } from "./args";
-import { assertClean, capture, captureArgs, gitArgs, isDryRun } from "./git";
+import {
+  assertCleanTree,
+  capture,
+  captureArgs,
+  gitArgs,
+  isDryRun,
+} from "./git";
 import { ask, confirm } from "./prompt";
 import { isContainer } from "./rules";
 
@@ -32,7 +38,7 @@ export function update(flags: Flags): void {
     throw new Error(
       `'${branch}' is a container; update works on a work branch.`,
     );
-  assertClean();
+  assertCleanTree();
   gitArgs(["fetch", "origin", "develop"]);
   try {
     gitArgs(["merge", "origin/develop", "--no-edit"]);
@@ -49,6 +55,7 @@ export function update(flags: Flags): void {
 export function undo(flags: Flags): void {
   noFlags(flags, "undo");
   currentBranch();
+  assertCleanTree();
   assertNotPushed();
   gitArgs(["reset", "--soft", "HEAD~1"]);
 }
@@ -138,7 +145,7 @@ async function askMessage(): Promise<string> {
 
 // gith squash -limit <n> [-m <message>]: combines the last n commits into one. Without -m the
 // result keeps the oldest of them: its message and author.
-export function squash(flags: Flags): void {
+export async function squash(flags: Flags): Promise<void> {
   const count = parseLimit(flags);
   const message = flags.get("message");
   const extra = [...flags.keys()].filter(
@@ -154,7 +161,7 @@ export function squash(flags: Flags): void {
     throw new Error(
       `'${branch}' is a container; squash works on a work branch.`,
     );
-  assertClean();
+  assertCleanTree();
 
   const total = Number(captureArgs(["rev-list", "--count", "HEAD"]));
   if (count >= total) {
@@ -173,6 +180,16 @@ export function squash(flags: Flags): void {
     );
   }
 
+  console.log("Will combine:");
+  for (const line of captureArgs(["log", `-n${count}`, "--oneline"]).split(
+    "\n",
+  )) {
+    console.log(`  ${line}`);
+  }
+  if (!(await confirm(`Combine these ${count} commits into one? [Y/n] `))) {
+    console.log("Nothing changed.");
+    return;
+  }
   gitArgs(["reset", "--soft", `HEAD~${count}`]);
   if (message) gitArgs(["commit", "-m", message]);
   else gitArgs(["commit", "-C", oldest]);

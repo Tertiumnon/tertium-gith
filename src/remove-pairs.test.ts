@@ -42,16 +42,20 @@ describe("remove: a pair by default, one side with --local or --remote", () => {
 
       git(repo, ["branch", "pair"]);
       git(repo, ["push", "-u", "origin", "pair"]);
-      expect(gith(repo, ["remove", "-b", "pair", "--local"]).status).toBe(0);
+      expect(
+        gith(repo, ["remove", "-b", "pair", "--local", "--yes"]).status,
+      ).toBe(0);
       expect(localExists(repo, "pair")).toBe(false);
       expect(originExists(repo, "pair")).toBe(true);
 
       git(repo, ["branch", "pair"]);
-      expect(gith(repo, ["remove", "-b", "pair", "--remote"]).status).toBe(0);
+      expect(
+        gith(repo, ["remove", "-b", "pair", "--remote", "--yes"]).status,
+      ).toBe(0);
       expect(localExists(repo, "pair")).toBe(true);
       expect(originExists(repo, "pair")).toBe(false);
 
-      expect(gith(repo, ["remove", "-b", "pair"]).status).toBe(0);
+      expect(gith(repo, ["remove", "-b", "pair", "--yes"]).status).toBe(0);
       expect(localExists(repo, "pair")).toBe(false);
       expect(gith(repo, ["remove", "-b", "pair"]).status).toBe(1); // exists neither here nor on origin
 

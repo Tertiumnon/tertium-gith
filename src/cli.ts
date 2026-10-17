@@ -9,6 +9,7 @@ import { save, squash, undo, update } from "./history";
 import { list } from "./list";
 import { clean, remove, reset, switchBranch, sync } from "./maintenance";
 import { open } from "./open";
+import { setAssumeYes } from "./prompt";
 import { release } from "./release";
 import { stash, unstash } from "./stash";
 import { stat } from "./stat";
@@ -75,6 +76,7 @@ Help
   gith --version                     show the version with the mascot
   --verbose                          (any command) also print read-only git calls
   --dry-run                          (any command) print the git commands that would run, without running them
+  --yes                              (any command) answer yes to every question (for scripts)
 
 Flags: a single dash always takes a value, a double dash never does.
   -b -r -h -l -m -n -limit -message -name -release -hotfix -branch   take a value, e.g. -limit 10
@@ -86,6 +88,7 @@ Flags: a single dash always takes a value, a double dash never does.
 const args = process.argv.slice(2).filter((arg) => {
   if (arg === "--verbose") setVerbose(true);
   else if (arg === "--dry-run") setDryRun(true);
+  else if (arg === "--yes") setAssumeYes(true);
   else return true;
   return false;
 });
@@ -111,7 +114,7 @@ try {
       sync(parseFlags(rest));
       break;
     case "clean":
-      clean(parseFlags(rest));
+      await clean(parseFlags(rest));
       break;
     case "list":
     case "show":
@@ -130,7 +133,7 @@ try {
       await save(parseFlags(rest));
       break;
     case "squash":
-      squash(parseFlags(rest));
+      await squash(parseFlags(rest));
       break;
     case "find":
     case "search":
@@ -155,7 +158,7 @@ try {
       tree(parseFlags(rest));
       break;
     case "reset":
-      reset(parseFlags(rest));
+      await reset(parseFlags(rest));
       break;
     case "release": {
       const flags = parseFlags(rest);
