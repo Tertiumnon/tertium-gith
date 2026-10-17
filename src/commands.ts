@@ -3,6 +3,7 @@ import {
   assertClean,
   assertSynced,
   capture,
+  captureArgs,
   git,
   gitArgs,
   hasOnOrigin,
@@ -15,7 +16,7 @@ import {
   isContainer,
   isTarget,
 } from "./rules";
-import { nextVersion } from "./versions";
+import { compare, nextVersion, parseSemver, type Semver } from "./versions";
 
 // gith create -b <branch> | -r [version] | -h [version]
 // Creates the branch and pushes it, but never switches: the current branch stays checked out.
@@ -36,9 +37,16 @@ export function create(flags: Flags): void {
 
 // gith merge [-r <version> | -h <version>]: merges this branch into develop by default.
 export function merge(flags: Flags): void {
-  const kind = onlyOne(flags, ["release", "hotfix"]);
+  const kind = onlyOne(flags, [
+    "release",
+    "hotfix",
+    "current-release",
+    "current-hotfix",
+  ]);
   let target = "develop";
-  if (kind) {
+  if (kind === "current-release") target = newestContainer("release");
+  else if (kind === "current-hotfix") target = newestContainer("hotfix");
+  else if (kind) {
     const version = flags.get(kind) ?? "";
     if (!version) {
       throw new Error(
@@ -48,6 +56,32 @@ export function merge(flags: Flags): void {
     target = containerName(kind, version);
   }
   mergeInto(target);
+}
+
+// The release/* or hotfix/* branch with the highest version, among the local branches and the
+// ones on origin. Versions compare as numbers, so 1.10.0 is newer than 1.9.0.
+function newestContainer(kind: ContainerKind): string {
+  const prefix = `${kind}/`;
+  const local = captureArgs([
+    "for-each-ref",
+    "--format=%(refname:short)",
+    "refs/heads",
+  ]).split("\n");
+  const origin = captureArgs(["ls-remote", "--heads", "origin"])
+    .split("\n")
+    .map((line) => (line.split("\t")[1] ?? "").replace(/^refs\/heads\//, ""));
+  const candidates = new Set(
+    [...local, ...origin].filter((name) => name.startsWith(prefix)),
+  );
+  let newest: { name: string; version: Semver } | undefined;
+  for (const name of candidates) {
+    const version = parseSemver(name.slice(prefix.length));
+    if (version && (!newest || compare(version, newest.version) > 0))
+      newest = { name, version };
+  }
+  if (!newest)
+    throw new Error(`no ${kind} branch exists, locally or on origin.`);
+  return newest.name;
 }
 
 // Creates a work branch named by its goal, from origin/develop, and pushes it with upstream

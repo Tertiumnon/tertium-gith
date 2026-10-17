@@ -25,6 +25,8 @@ Start and finish work
   gith switch -b <branch>            switch to a branch, creating it from develop if missing
   gith update                        merge origin/develop into this work branch
   gith merge [-r <v> | -h <v>]       merge this branch into develop, release/<v> or hotfix/<v>
+  gith merge --current-release       merge this branch into the newest release (local or origin)
+  gith merge --current-hotfix        merge this branch into the newest hotfix (local or origin)
   gith release --patch | --minor | --major   bump the version and publish
 
 Fix history

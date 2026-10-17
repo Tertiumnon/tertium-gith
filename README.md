@@ -33,6 +33,8 @@ gith update                         # merge origin/develop into this work branch
 gith merge                          # this branch into develop
 gith merge -r 1.2.0                 # this branch into release/1.2.0
 gith merge -h 1.2.1                 # this branch into hotfix/1.2.1
+gith merge --current-release        # this branch into the newest release/* (local or origin)
+gith merge --current-hotfix         # this branch into the newest hotfix/* (local or origin)
 gith release --patch                # npm version patch, published through main
 gith release --minor                # npm version minor, from develop into main
 gith release --major                # npm version major, from develop into main
@@ -97,6 +99,7 @@ One rule applies to every command: **a single dash always takes a value, and a d
 | `--branch` | alone: open the picker | `remove` |
 | `-r <version>`, `-release <version>` | value | `create`, `merge` |
 | `--release` | alone: version from the latest tag | `create` |
+| `--current-release`, `--current-hotfix` | switch: merge into the newest release or hotfix | `merge` |
 | `-h <version>`, `-hotfix <version>` | value | `create`, `merge` |
 | `--hotfix` | alone: version from the latest tag | `create` |
 | `-limit <n>` | value | `squash`: how many commits to combine |
@@ -150,6 +153,7 @@ Commands that choose between flags (for example `create -b`, `-r` and `-h`, or `
 - **`create -b`** creates the branch from `origin/develop`, pushes it with upstream tracking, and leaves the current branch checked out. It does not touch the working tree, so it works with uncommitted changes.
 - **`create -r` / `create -h`** creates a container from its base (`develop` for release, `main` for hotfix), refusing names that already exist on origin. Like `create -b`, it does not switch.
 - **With `--release` or `--hotfix` (no value)**, the version is worked out from the highest `vX.Y.Z` tag across local tags and origin: `-r` takes the next minor (`1.2.1` → `1.3.0`), `-h` takes the next patch (`1.2.1` → `1.2.2`). With no tags yet, the first release is `0.1.0` and the first hotfix `0.0.1`. The version is printed before the branch is created.
+- **`merge --current-release`** and **`--current-hotfix`** pick the newest `release/*` or `hotfix/*` branch by version (numbers compare as numbers, so `1.10.0` beats `1.9.0`), checking both local branches and origin, and merge into it. The target must exist on origin, because the merge pushes it; a newest branch that only exists here stops the command with a message.
 - **`merge`** pushes the work branch, merges the target into it first (so conflicts happen on the work branch and are aborted cleanly), then merges it into the target with `--no-ff`, pushes, and checks that both branches match origin.
 
 Containers (`develop`, `main`, `release/*`, `hotfix/*`) can't be merged from, and only `develop`, `release/*` and `hotfix/*` can be merged into.
