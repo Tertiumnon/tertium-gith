@@ -32,15 +32,6 @@ function check(
   };
 }
 
-// A git config value, or "" when the key is not set.
-function configValue(key: string): string {
-  try {
-    return captureArgs(["config", key]);
-  } catch {
-    return "";
-  }
-}
-
 const CHECKS: Check[] = [
   check("git is installed", () => {
     captureArgs(["--version"]);
@@ -72,14 +63,6 @@ const CHECKS: Check[] = [
       captureArgs(["status", "--porcelain"]) === ""
         ? undefined
         : "uncommitted changes",
-    "warn",
-  ),
-  check(
-    "hooks path is .githooks",
-    () =>
-      configValue("core.hooksPath") === ".githooks"
-        ? undefined
-        : "not set: run gith setup --hooks",
     "warn",
   ),
 ];

@@ -5,7 +5,6 @@ import { create, merge } from "./commands";
 import { doctor } from "./doctor";
 import { isDryRun, setDryRun, setVerbose } from "./git";
 import { amend, undo, update } from "./history";
-import { setup } from "./hooks";
 import { list } from "./list";
 import { clean, remove, reset, switchBranch, sync } from "./maintenance";
 import { open } from "./open";
@@ -50,7 +49,6 @@ Usage:
   gith sync                  fetch all remotes, tags, and prune stale refs
   gith clean                 remove untracked files and directories (keeps ignored)
   gith reset                 discard uncommitted changes and untracked files (hard reset + clean)
-  gith setup --hooks [--force]  write .githooks/pre-commit and set core.hooksPath
   gith help                  show this help
   --verbose (any command)    also print read-only git calls, such as rev-parse and ls-remote
   --dry-run (any command)    print the git commands that would run, without running them
@@ -60,7 +58,7 @@ Dashes decide how a flag takes its value:
   --release, --hotfix                         auto version from the latest tag
   -b <name>, -branch <name>, --branch <name>  branch name
   --patch | -patch, --minor | -minor, --major | -major
-  --hooks, --force, --remote, --both                  switches; one dash works too (-hooks)`;
+  --remote, --both, --obsolete, --graph               switches; one dash works too (-remote)`;
 
 // --verbose and --dry-run are global: they are removed here, so no command has to parse them.
 const args = process.argv.slice(2).filter((arg) => {
@@ -125,9 +123,6 @@ try {
       break;
     case "reset":
       reset(parseFlags(rest));
-      break;
-    case "setup":
-      setup(parseFlags(rest));
       break;
     case "release": {
       const flags = parseFlags(rest);

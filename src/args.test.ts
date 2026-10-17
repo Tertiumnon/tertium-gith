@@ -99,8 +99,8 @@ describe("onlyOne", () => {
 });
 
 describe("switches added for gith", () => {
-  test("hooks, force, remote and both work in both dash forms", () => {
-    for (const name of ["hooks", "force", "remote", "both"]) {
+  test("remote and both work in both dash forms", () => {
+    for (const name of ["remote", "both"]) {
       expect(parseFlags([`-${name}`]).get(name)).toBe("true");
       expect(parseFlags([`--${name}`]).get(name)).toBe("true");
     }

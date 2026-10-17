@@ -19,8 +19,6 @@ const SPECS = new Map<string, Modes>([
   ["patch", { single: "none", double: "none" }],
   ["minor", { single: "none", double: "none" }],
   ["major", { single: "none", double: "none" }],
-  ["hooks", { single: "none", double: "none" }],
-  ["force", { single: "none", double: "none" }],
   ["remote", { single: "none", double: "none" }],
   ["both", { single: "none", double: "none" }],
   ["tags", { single: "none", double: "none" }],

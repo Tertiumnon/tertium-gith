@@ -1,6 +1,6 @@
 # gith
 
-Git helper: the branch flow from [git-convention](https://github.com/Tertiumnon/git-convention) (goal-named work branches, `release/*` and `hotfix/*` containers, merges that sync both sides with origin), plus everyday git commands: status, switch, update, undo, amend, stash, remove, list, tree, sync, clean, reset, open, doctor and a pre-commit hook setup. Any command takes `--dry-run` to show the git commands it would run. No dependencies beyond git and [Bun](https://bun.com).
+Git helper: the branch flow from [git-convention](https://github.com/Tertiumnon/git-convention) (goal-named work branches, `release/*` and `hotfix/*` containers, merges that sync both sides with origin), plus everyday git commands: status, switch, update, undo, amend, stash, remove, list, tree, sync, clean, reset, open and doctor. Any command takes `--dry-run` to show the git commands it would run. No dependencies beyond git and [Bun](https://bun.com).
 
 > **Very early state (0.1.0).** Commands and flags may change without notice, and the tool has only been run against throwaway test repositories. Check the result with `git log` and `git status` before you push.
 
@@ -51,7 +51,6 @@ gith doctor                         # check the repo is ready for the branch flo
 gith sync                           # fetch all remotes and tags, prune stale refs
 gith clean                          # remove untracked files and directories
 gith reset                          # discard uncommitted changes, then clean
-gith setup --hooks [--force]        # write .githooks/pre-commit, set core.hooksPath
 gith help                           # full usage
 
 # Add --verbose to any command to see the git commands it runs, including read-only ones.
@@ -64,7 +63,7 @@ The dashes decide how a flag takes its value:
 - `-b <name>`, `-branch <name>`, `--branch <name>`: the branch name. Without a name, `remove -b` opens the picker.
 - `--patch` or `-patch`, and likewise `--minor` and `--major`.
 
-`--remote`, `--both`, `--obsolete`, `--hooks`, `--force`, `--tags`, `--commits` and `--graph` also work with one dash, as in `-remote` or `-force`. `-l` is short for `-limit`, and `-limit` works on every listing: `list --tags`, `list --commits` and the `remove -b` picker. `-m` is short for `-message`.
+`--remote`, `--both`, `--obsolete`, `--tags`, `--commits` and `--graph` also work with one dash, as in `-remote` or `-force`. `-l` is short for `-limit`, and `-limit` works on every listing: `list --tags`, `list --commits` and the `remove -b` picker. `-m` is short for `-message`.
 
 Two flags work with every command, and can go anywhere on the line:
 - `--dry-run` prints each git command that would change something, and runs none of them. Read-only checks still run, so a refusal (for example, "HEAD is already on origin") appears in a dry run too. `clean` and `reset` also list the files they would remove or discard.
@@ -87,14 +86,13 @@ Each command takes one of its flags; giving two is an error.
 - **`unstash`** runs `git stash pop`. If it conflicts, git keeps the stash in the list.
 - **`remove --obsolete`** lists local branches whose origin copy was deleted (git shows them as `[gone]` after a fetch). It works like the picker: choose the numbers to delete. It uses `git branch -d`, so a branch that git does not see as merged is kept. A branch merged by squash on GitHub is not seen as merged, so git keeps it.
 - **`open`** opens origin in the browser, turning an `ssh` or `https` remote into a web address. GitHub and GitLab style addresses work.
-- **`doctor`** checks git, a repository, origin, its reachability, `main` and `develop` on origin, a clean working tree and the hooks path. It exits 1 if a required check fails, and only warns about the tree and hooks.
+- **`doctor`** checks git, a repository, origin, its reachability, `main` and `develop` on origin, and a clean working tree. It exits 1 if a required check fails, and only warns about the tree.
 - **`sync`** runs `git fetch --all --tags --prune`.
 - **`tree`** lists the working trees of the repository (`git worktree list`): each path, its branch or `(detached)`, and its short HEAD. The current one is marked `*`, and bare, locked or prunable trees are noted. `-limit <n>` caps the rows; all are shown by default.
 - **`list --tags`** shows every tag once, with yes/no columns for local and origin, so you can see which tags are unpushed or missing locally. Version tags are listed newest first, and only the first 5 are shown by default. `-limit <n>` (or `-l`, `--limit`) changes that and adds a note when rows are left out.
 - **`list --commits`** shows the newest commits on the current branch, one per line: short hash, date, author and subject. With `--graph` it draws the branch graph instead. It shows 5 by default; `-l <n>` (or `-limit`/`--limit`) changes that and must be a positive whole number. `-limit` only applies to `--commits`. `gith list` with no flag prints usage.
 - **`clean`** runs `git clean -fd`. It permanently removes untracked files and directories, but keeps ignored files.
 - **`reset`** runs `git reset --hard` (discards staged and unstaged edits on this branch), then `git clean -fd`. It cannot be undone, so commit or stash first. It does not move the branch to origin.
-- **`setup --hooks`** writes `.githooks/pre-commit`, points `core.hooksPath` at it, and adds a `prepare` script so every clone gets the hook. The hook runs `lint`, `typecheck` (always for TypeScript projects) and `test` (only when defined), using the package manager from the lockfile. `--force` overwrites an existing hook.
 
 ## What it does
 
@@ -113,37 +111,6 @@ Run as `gith release --patch`, `--minor` or `--major`.
 - **`minor` and `major`** run from `develop`: bump the version, push with tags, merge `develop` into `main`, then bring `main` back to `develop`.
 
 Both need a clean working tree and a `package.json` with a version, because they call `npm version`.
-
-## Moved from hlpr
-
-The git commands from [@tertium/hlpr](https://github.com/Tertiumnon/tertium-hlpr) now live here:
-
-| Was in hlpr | Now in gith |
-| --- | --- |
-| `hlpr git switch -branch <b>` | `gith switch -b <b>` |
-| `hlpr git remove -branch <b>`, `rm -b` | `gith remove -b <b>`, `gith rm -b <b>` |
-| `hlpr git rm <b> -remote` / `-both` | `gith remove -b <b> --remote` / `--both` |
-| `hlpr git sync` | `gith sync` |
-| `hlpr git clean` | `gith clean` |
-| (new) | `gith reset`: hard reset plus clean |
-| `hlpr git setup -hooks [--force]` | `gith setup --hooks [--force]` |
-| `hlpr git create -b <b>` (branch without switching) | `gith create -b <b>` (same behaviour: creates from develop and stays put) |
-
-Branch names are passed to git as argument lists, so they are never parsed by the shell.
-
-## Moved from @tertium/js
-
-These git-flow features used to live in `scripts/` in [@tertium/js](https://github.com/Tertiumnon/tertium-js). They moved here because they are git workflow, not part of the shared JS library:
-
-| Was in @tertium/js | Now in gith |
-| --- | --- |
-| `scripts/release/release.ts` (`release:patch`, `release:minor`, `release:major`) | `gith release --patch`, `--minor`, `--major` |
-| `scripts/merge-branch/` (`merge:branch`, `merge:release`, `merge:hotfix`) | `gith merge`, `gith create -r`, `gith create -h` |
-| `scripts/git/git.utils.ts` (shared git helpers) | `src/git.ts` |
-
-Behaviour is the same where it was tested. Two intentional differences:
-- `gith` uses goal-named work branches with no `feat/` or `fix/` prefix. Commit types belong in commit messages.
-- A minor release merges `develop` into `main` with `--no-edit`, so it no longer waits for an editor.
 
 ## Errors
 
