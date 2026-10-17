@@ -680,6 +680,9 @@ describe("switch --release and --hotfix", () => {
       expect(gith(repo, ["switch", "-r", "9.9.9"]).status).toBe(1);
       expect(gith(repo, ["switch", "--hotfix"]).status).toBe(1);
       expect(gith(repo, ["switch", "--release", "-b", "x"]).status).toBe(1);
+      const picker = gith(repo, ["switch"]);
+      expect(picker.status).toBe(1);
+      expect(picker.stderr).toContain("the list needs a terminal");
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });
     }

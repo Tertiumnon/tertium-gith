@@ -32,7 +32,8 @@ import {
 // gith switch -commit <sha>: detaches HEAD at that commit, after the tracked files are clean.
 // On a detached HEAD, gith switch -b creates the branch at the current commit, so new commits
 // stay on it.
-export function switchBranch(flags: Flags): void {
+export async function switchBranch(flags: Flags): Promise<void> {
+  if (flags.size === 0) return switchPick();
   // --release and --hotfix go to the newest existing branch; -r <v> and -h <v> to that version.
   // They only switch: a branch that does not exist is an error, never created here.
   const kind = onlyOne(flags, ["release", "hotfix"]);
@@ -269,9 +270,18 @@ export async function clean(flags: Flags): Promise<void> {
 }
 
 // Lists the options (the first `limit`, or all) and reads which ones to remove.
-async function choose(options: Option[], limit?: number): Promise<string[]> {
+const REMOVE_ACTION = {
+  empty: "No branches to remove.",
+  prompt: "Remove which? Numbers or ranges, e.g. 1,3-4 (empty cancels): ",
+};
+
+async function choose(
+  options: Option[],
+  limit?: number,
+  action = REMOVE_ACTION,
+): Promise<string[]> {
   if (options.length === 0) {
-    console.log("No branches to remove.");
+    console.log(action.empty);
     return [];
   }
   const shown = limit === undefined ? options : options.slice(0, limit);
@@ -285,15 +295,51 @@ async function choose(options: Option[], limit?: number): Promise<string[]> {
   }
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   try {
-    const answer = await rl.question(
-      "Remove which? Numbers or ranges, e.g. 1,3-4 (empty cancels): ",
-    );
+    const answer = await rl.question(action.prompt);
     return parseSelection(answer, shown.length).map(
       (i) => shown[i]?.name ?? "",
     );
   } finally {
     rl.close();
   }
+}
+
+// gith switch: lists local and origin branches, and switches to the one picked.
+function switchOptions(): Option[] {
+  const local = localBranches();
+  const origin = remoteBranches();
+  const current = currentBranch();
+  const names = [...new Set([...local, ...origin])].sort((a, b) =>
+    a.localeCompare(b),
+  );
+  return names.map((name) => {
+    const where =
+      local.includes(name) && origin.includes(name)
+        ? "local + origin"
+        : local.includes(name)
+          ? "local"
+          : "origin";
+    return {
+      name,
+      label: `${name}  (${where}${name === current ? ", current" : ""})`,
+    };
+  });
+}
+
+async function switchPick(): Promise<void> {
+  if (!process.stdin.isTTY) {
+    throw new Error(
+      "pass a branch name with -b, e.g. gith switch -b <branch>; the list needs a terminal",
+    );
+  }
+  const picked = await choose(switchOptions(), undefined, {
+    empty: "No branches.",
+    prompt: "Switch to which? Enter one number (empty cancels): ",
+  });
+  if (picked.length === 0) return;
+  if (picked.length > 1)
+    throw new Error("pick exactly one branch to switch to.");
+  gitArgs(["switch", "--", picked[0] ?? ""]);
 }
 
 // The picker asks a question, so it needs a terminal. Checked before any listing.

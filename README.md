@@ -35,6 +35,7 @@ gith create -r 1.2.0                # release/1.2.0 from develop
 gith create -h 1.2.1                # hotfix/1.2.1 from main
 gith create --release               # release, version = minor after the latest tag
 gith create --hotfix                # hotfix, version = patch after the latest tag
+gith switch                         # list local and origin branches, and switch to the one you pick
 gith switch -b login-redirect       # switch to the branch, creating it from develop if it is missing
 gith switch -commit 3f2a1b9         # detach HEAD at that commit, to look at old code
 gith switch --release               # switch to the newest release/* (local or origin); -r 1.9.0 for one version

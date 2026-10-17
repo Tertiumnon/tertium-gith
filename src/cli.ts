@@ -30,6 +30,7 @@ Start and finish work
   gith create -r <version>           release/<version> from develop
   gith create -h <version>           hotfix/<version> from main
   gith create --release | --hotfix   version from the latest tag: minor for release, patch for hotfix
+  gith switch                        list local and origin branches, and switch to the one picked
   gith switch -b <branch>            switch to a branch, creating it from develop if missing (on a detached HEAD: from that commit)
   gith switch -commit <sha>          detach HEAD at a commit, to look at it (tracked files must be clean)
   gith switch --release | --hotfix   switch to the newest release/* or hotfix/* (local or origin); -r <v> / -h <v> for one version
@@ -113,7 +114,7 @@ try {
       merge(parseFlags(rest));
       break;
     case "switch":
-      switchBranch(parseFlags(rest));
+      await switchBranch(parseFlags(rest));
       break;
     case "remove":
     case "rm":
