@@ -75,7 +75,7 @@ describe("status, stash, update, undo and amend", () => {
         "unstaged 1, untracked 1",
       );
 
-      expect(gith(repo, ["stash", "-m", "wip"]).status).toBe(0);
+      expect(gith(repo, ["stash", "-n", "wip"]).status).toBe(0);
       expect(gith(repo, ["status"]).stdout).toContain("working tree clean");
       expect(gith(repo, ["stash"]).status).toBe(1); // nothing left to stash
       expect(gith(repo, ["unstash"]).status).toBe(0);

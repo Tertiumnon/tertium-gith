@@ -1,15 +1,15 @@
 import type { Flags } from "./args";
 import { captureArgs, gitArgs } from "./git";
 
-// gith stash [-m <message>]: saves uncommitted changes, including untracked files.
+// gith stash [-n <name>]: saves uncommitted changes, including untracked files.
 export function stash(flags: Flags): void {
-  const message = flags.get("message");
-  if (flags.size > (message === undefined ? 0 : 1))
-    throw new Error("usage: gith stash [-m <message>]");
+  const name = flags.get("name");
+  if (flags.size > (name === undefined ? 0 : 1))
+    throw new Error("usage: gith stash [-n <name>]");
   if (captureArgs(["status", "--porcelain"]) === "")
     throw new Error("nothing to stash.");
   const args = ["stash", "push", "--include-untracked"];
-  if (message) args.push("-m", message);
+  if (name) args.push("-m", name);
   gitArgs(args);
 }
 

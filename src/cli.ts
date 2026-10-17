@@ -4,7 +4,7 @@ import { onlyOne, parseFlags } from "./args";
 import { create, merge } from "./commands";
 import { doctor } from "./doctor";
 import { isDryRun, setDryRun, setVerbose } from "./git";
-import { amend, undo, update } from "./history";
+import { amend, squash, undo, update } from "./history";
 import { list } from "./list";
 import { clean, remove, reset, switchBranch, sync } from "./maintenance";
 import { open } from "./open";
@@ -36,12 +36,14 @@ Usage:
   gith remove --obsolete [-l <n>]  pick local branches whose origin copy was deleted
   gith list --tags [-l <n>]  tags with a local and origin column (newest 5 by default)
   gith list --commits [--graph] [-l <n>]  newest commits on this branch (default 5)
+  gith list --stashes [-l <n>]  stashes, newest first (default 5)
   -limit <n> (-l, --limit) caps any listing: list, and the remove picker (default: all)
   gith status                show branch vs origin, and staged, unstaged and untracked counts
   gith update                merge origin/develop into this work branch
   gith undo                  undo the last commit, keep its changes staged (not if pushed)
   gith amend                 add staged changes to the last commit, keep its message (not if pushed)
-  gith stash [-m <msg>]      stash changes, including untracked files
+  gith stash [-n <name>]     stash changes, including untracked files
+  gith squash -count <n> [-m <msg>]  combine the last n commits into one (keeps the oldest message)
   gith unstash               bring back the latest stash
   gith open                  open this repository's origin in the browser
   gith doctor                check the repo is ready for the branch flow (exit 1 on failures)
@@ -105,6 +107,9 @@ try {
       break;
     case "amend":
       amend(parseFlags(rest));
+      break;
+    case "squash":
+      squash(parseFlags(rest));
       break;
     case "stash":
       stash(parseFlags(rest));

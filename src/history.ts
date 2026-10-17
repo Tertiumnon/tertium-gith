@@ -64,3 +64,48 @@ export function amend(flags: Flags): void {
   }
   gitArgs(["commit", "--amend", "--no-edit"]);
 }
+
+// gith squash -count <n> [-m <message>]: combines the last n commits into one. Without -m the
+// result keeps the oldest of them: its message and author.
+export function squash(flags: Flags): void {
+  const raw = flags.get("count");
+  const message = flags.get("message");
+  const extra = [...flags.keys()].filter(
+    (key) => key !== "count" && key !== "message",
+  );
+  if (raw === undefined || extra.length > 0) {
+    throw new Error("usage: gith squash -count <n> [-m <message>]");
+  }
+  if (!/^[1-9]\d*$/.test(raw))
+    throw new Error("-count needs a positive whole number.");
+  const count = Number(raw);
+  if (count < 2) throw new Error("-count needs at least 2 commits to squash.");
+
+  const branch = currentBranch();
+  if (isContainer(branch))
+    throw new Error(
+      `'${branch}' is a container; squash works on a work branch.`,
+    );
+  assertClean();
+
+  const total = Number(captureArgs(["rev-list", "--count", "HEAD"]));
+  if (count >= total) {
+    throw new Error(
+      `only ${total} commits on this branch; squashing ${count} would reach the first commit.`,
+    );
+  }
+  const commits = captureArgs(["rev-list", `-n${count}`, "HEAD"]).split("\n");
+  const oldest = commits[count - 1] ?? "";
+  if (captureArgs(["rev-list", "--merges", `-n${count}`, "HEAD"]) !== "") {
+    throw new Error("the commits include a merge; squashing would flatten it.");
+  }
+  if (captureArgs(["branch", "-r", "--contains", oldest]) !== "") {
+    throw new Error(
+      "these commits are already on origin; squashing them would need a force-push.",
+    );
+  }
+
+  gitArgs(["reset", "--soft", `HEAD~${count}`]);
+  if (message) gitArgs(["commit", "-m", message]);
+  else gitArgs(["commit", "-C", oldest]);
+}

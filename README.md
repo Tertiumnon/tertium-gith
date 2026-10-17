@@ -1,6 +1,6 @@
 # gith
 
-Git helper: the branch flow from [git-convention](https://github.com/Tertiumnon/git-convention) (goal-named work branches, `release/*` and `hotfix/*` containers, merges that sync both sides with origin), plus everyday git commands: status, switch, update, undo, amend, stash, remove, list, tree, sync, clean, reset, open and doctor. Any command takes `--dry-run` to show the git commands it would run. No dependencies beyond git and [Bun](https://bun.com).
+Git helper: the branch flow from [git-convention](https://github.com/Tertiumnon/git-convention) (goal-named work branches, `release/*` and `hotfix/*` containers, merges that sync both sides with origin), plus everyday git commands: status, switch, update, undo, amend, squash, stash, remove, list, tree, sync, clean, reset, open and doctor. Any command takes `--dry-run` to show the git commands it would run. No dependencies beyond git and [Bun](https://bun.com).
 
 > **Very early state (0.1.0).** Commands and flags may change without notice, and the tool has only been run against throwaway test repositories. Check the result with `git log` and `git status` before you push.
 
@@ -43,8 +43,10 @@ gith status                         # branch vs origin, and staged, unstaged and
 gith update                         # merge origin/develop into this work branch
 gith undo                           # undo the last commit, keep its changes staged (not if pushed)
 gith amend                          # fold staged changes into the last commit (not if pushed)
-gith stash [-m "wip"]               # stash changes, including untracked files
+gith stash -n wip                   # stash changes, including untracked files, under a name
+gith squash -count 3 [-m "msg"]     # combine the last 3 commits into one (keeps the oldest message)
 gith unstash                        # bring back the latest stash
+gith list --stashes                 # the newest 5 stashes (-l for more)
 gith tree                           # working trees of this repo: path, branch, HEAD (current marked *)
 gith open                           # open origin in the browser
 gith doctor                         # check the repo is ready for the branch flow
@@ -63,7 +65,7 @@ The dashes decide how a flag takes its value:
 - `-b <name>`, `-branch <name>`, `--branch <name>`: the branch name. Without a name, `remove -b` opens the picker.
 - `--patch` or `-patch`, and likewise `--minor` and `--major`.
 
-`--remote`, `--both`, `--obsolete`, `--tags`, `--commits` and `--graph` also work with one dash, as in `-remote` or `-force`. `-l` is short for `-limit`, and `-limit` works on every listing: `list --tags`, `list --commits` and the `remove -b` picker. `-m` is short for `-message`.
+`--remote`, `--both`, `--obsolete`, `--tags`, `--commits`, `--graph` and `--stashes` also work with one dash, as in `-remote` or `-force`. `-l` is short for `-limit`, and `-limit` works on every listing: `list --tags`, `list --commits` and the `remove -b` picker. `-m` is short for `-message` (the squash commit message), and `-n` is short for `-name` (the stash name). `-count` sets how many commits `squash` combines.
 
 Two flags work with every command, and can go anywhere on the line:
 - `--dry-run` prints each git command that would change something, and runs none of them. Read-only checks still run, so a refusal (for example, "HEAD is already on origin") appears in a dry run too. `clean` and `reset` also list the files they would remove or discard.
@@ -82,7 +84,9 @@ Each command takes one of its flags; giving two is an error.
 - **`update`** fetches `origin/develop` and merges it into the current work branch. It needs a clean working tree and refuses containers. If the merge conflicts, it aborts the merge and says so. It does not push.
 - **`undo`** runs `git reset --soft HEAD~1`: the last commit is removed and its changes stay staged. It refuses when HEAD is already on origin, because undoing a pushed commit needs a force-push.
 - **`amend`** runs `git commit --amend --no-edit` to fold the staged changes into the last commit, keeping its message. It refuses with nothing staged, and when HEAD is already on origin.
-- **`stash`** saves changes with `git stash push --include-untracked`. `-m` sets the message. It refuses when there is nothing to save.
+- **`stash`** saves changes with `git stash push --include-untracked`. `-n` names the stash. It refuses when there is nothing to save.
+- **`list --stashes`** shows the stashes, newest first, with their date and description. Like the other listings, it shows 5 by default, and `-limit` changes that.
+- **`squash -count <n>`** combines the last `n` commits on the current work branch into one, using `reset --soft` and a single commit. Without `-m` the result keeps the oldest of the combined commits, its message and author. It refuses when `n` is below 2, when `n` would reach the first commit, when a merge is among them, when any of them is already on origin, on a container, or with a dirty working tree.
 - **`unstash`** runs `git stash pop`. If it conflicts, git keeps the stash in the list.
 - **`remove --obsolete`** lists local branches whose origin copy was deleted (git shows them as `[gone]` after a fetch). It works like the picker: choose the numbers to delete. It uses `git branch -d`, so a branch that git does not see as merged is kept. A branch merged by squash on GitHub is not seen as merged, so git keeps it.
 - **`open`** opens origin in the browser, turning an `ssh` or `https` remote into a web address. GitHub and GitLab style addresses work.

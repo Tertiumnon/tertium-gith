@@ -48,16 +48,40 @@ function yesNo(value: boolean): string {
 
 // gith list --tags | --commits, showing the first -limit rows (default 5).
 export function list(flags: Flags): void {
-  const kind = onlyOne(flags, ["tags", "commits"]);
+  const kind = onlyOne(flags, ["tags", "commits", "stashes"]);
   if (!kind)
     throw new Error(
-      "usage: gith list --tags | --commits [--graph] [-limit <n>]",
+      "usage: gith list --tags | --commits [--graph] | --stashes [-limit <n>]",
     );
   if (flags.has("graph") && kind !== "commits")
     throw new Error("--graph only applies to --commits.");
   const limit = parseLimit(flags) ?? DEFAULT_LIMIT;
   if (kind === "commits") commits(limit, flags.has("graph"));
+  else if (kind === "stashes") stashes(limit);
   else tags(limit);
+}
+
+// Newest first. Each row is the stash selector, its date, and git's description of it.
+function stashes(limit: number): void {
+  const rows = captureArgs([
+    "stash",
+    "list",
+    "--date=short",
+    "--format=%gd  %cd  %gs",
+  ])
+    .split("\n")
+    .filter(Boolean);
+  if (rows.length === 0) {
+    console.log("No stashes.");
+    return;
+  }
+  const shown = rows.slice(0, limit);
+  console.log(shown.join("\n"));
+  if (shown.length < rows.length) {
+    console.log(
+      `showing ${shown.length} of ${rows.length}; -limit <n> shows more`,
+    );
+  }
 }
 
 // Newest first, from the current branch.
