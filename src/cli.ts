@@ -57,6 +57,7 @@ Clean up branches (every removal shows what it will remove first)
   gith remove --branch --remote      pick from origin branches
   gith remove --obsolete [--local] [-days <n>]   remove branches untouched for 90 days, after Y/n
   gith remove --detached [-l <n>]    pick local branches that have no origin copy
+  gith remove --detached --all       remove all of them, after listing them and a Y/n question
   gith rm                            alias of remove
 
 Look at the repo

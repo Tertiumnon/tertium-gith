@@ -70,6 +70,7 @@ gith remove --obsolete              # remove branches untouched for 90 days, on 
 gith remove --obsolete --local      # the same, here only
 gith remove --obsolete -days 30     # untouched for 30 days instead
 gith remove --detached              # pick local branches that have no origin copy
+gith remove --detached --all        # remove all of them: lists them, then asks Y/n
 
 # Look at the repo
 gith status                         # branch vs origin, and staged, unstaged and untracked counts
@@ -155,6 +156,7 @@ Commands that choose between flags (for example `create -b`, `-r` and `-h`, or `
 - **`stat`** reads the history of the current branch and prints a table of facts: commit count, top author, the biggest commit (lines added and removed), average size, the most changed file, the busiest day, weekday and hour, the longest streak of days with a commit, night owl and weekend commits, and the conventional commit types. The period is one switch: `--overall` (the default), `--current-year`, `--current-month`, `--current-week` (weeks start on Monday), or the matching `--last-` switch for the previous year, month or week. `-limit <n>` looks only at the last `n` commits. Stat changes nothing.
 - **`unstash`** runs `git stash pop`. If it conflicts, git keeps the stash in the list.
 - **`remove --obsolete`** fetches and prunes origin, then lists the branches untouched for `-days` (default 90): no commit newer than the cutoff on either side. Each line shows the sides and the last commit date, and the command asks `Remove these N branches here and on origin? [Y/n]`. Enter means yes. `--local` looks at and removes only local branches. `-limit` shows only the first `n`, and the prompt covers only those. `main`, `develop`, `release/*` and `hotfix/*` are never removed, and neither is the checked-out branch. Each branch is deleted locally first (`git branch -d`), so a branch that git does not see as merged stops the run before its origin copy is touched.
+- **`remove --detached --all`** fetches and prunes origin, lists every local branch with no origin copy, and asks `Remove these N branches? [Y/n]` once. Nothing is deleted without the yes, and `--all` can't be combined with `-limit`.
 - **`remove --detached`** fetches and prunes origin, then lists local branches that have no origin copy and lets you pick from them, the same as `remove --branch --local` but for branches with no origin copy only.
 - **Every removal shows what it will remove** before deleting anything, including the direct `remove -b` form. The picker and the prompt both show it first.
 - **`open`** opens origin in the browser, turning an `ssh` or `https` remote into a web address. GitHub and GitLab style addresses work.
