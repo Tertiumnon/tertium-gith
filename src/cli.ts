@@ -28,7 +28,7 @@ Usage:
   gith sync                  fetch all remotes, tags, and prune stale refs
   gith clean                 remove untracked files and directories (keeps ignored)
   gith reset                 discard uncommitted changes and untracked files (hard reset + clean)
-  gith setup -hooks [--force]  write .githooks/pre-commit and set core.hooksPath
+  gith setup --hooks [--force]  write .githooks/pre-commit and set core.hooksPath
   gith help                  show this help
 
 Dashes decide how a flag takes its value:
@@ -36,7 +36,7 @@ Dashes decide how a flag takes its value:
   --release, --hotfix                         auto version from the latest tag
   -b <name>, -branch <name>, --branch <name>  branch name
   --patch | -patch, --minor | -minor, --major | -major
-  -hooks, -force, -remote, -both              switches, same as --hooks, --force, ...`;
+  --hooks, --force, --remote, --both                  switches; one dash works too (-hooks)`;
 
 const [command, ...rest] = process.argv.slice(2);
 
