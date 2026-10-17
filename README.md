@@ -26,14 +26,14 @@ gith release --major                # npm version major, from develop into main
 
 # Everyday git
 gith switch -b login-redirect       # switch to the branch, creating it from develop if it is missing
-gith remove -b login-redirect       # delete a merged local branch (rm is an alias)
-gith remove -b login-redirect --remote   # also delete it on origin
-gith remove -b login-redirect --both     # delete locally, then on origin
-gith remove --branch                 # list local branches and pick which to delete (all of them)
+gith remove -b login-redirect       # delete the branch here and on origin (rm is an alias)
+gith remove -b login-redirect --local    # delete only the local branch
+gith remove -b login-redirect --remote   # delete only the origin branch
+gith remove --branch                # list branch pairs (here and on origin) and pick which to delete
+gith remove --branch -l 10          # only the first 10 in the list
+gith remove --branch --local        # list local branches and pick
+gith remove --branch --remote       # list origin branches and pick
 gith remove --obsolete              # pick local branches whose origin copy was deleted
-gith remove --branch -l 10         # only the first 10 in the list
-gith remove --branch --remote     # list origin branches and pick
-gith remove --branch --both       # list branches that exist locally and on origin, and pick
 gith list --tags                    # the newest 5 tags with a LOCAL and ORIGIN column
 gith list --tags -l 20              # the newest 20
 gith list --commits                 # the last 5 commits on this branch
@@ -76,7 +76,7 @@ One rule applies to every command: **a single dash always takes a value, and a d
 | `-n <name>`, `-name <name>` | value | `stash` |
 | `-l <n>`, `-limit <n>` | value, positive whole number | every listing: `list`, `tree`, the picker |
 | `--patch`, `--minor`, `--major` | switch | `release` |
-| `--remote`, `--both` | switch | `remove` |
+| `--local`, `--remote` | switch | `remove` (both sides when neither is given) |
 | `--obsolete` | switch | `remove` |
 | `--tags`, `--commits`, `--graph`, `--stashes` | switch | `list` |
 | `--verbose` | switch | every command |
@@ -91,8 +91,8 @@ Commands that choose between flags (for example `create -b`, `-r` and `-h`, or `
 ## Git commands
 
 - **`switch -b`** switches to a branch. If the branch exists neither locally nor on origin, it is created first, the same way as `create -b`, and then checked out.
-- **`remove -b <branch>`** runs `git branch -d`, so git refuses to delete an unmerged branch. `--remote` deletes the branch on origin; `--both` deletes it locally first, then on origin. Containers (`develop`, `main`, `release/*`, `hotfix/*`) are refused.
-- **`remove --branch`** with no name lists the branches and asks which to remove. `-limit <n>` shows only the first `n` (all by default), and the picker numbers only those. Answer with numbers or ranges, such as `1,3-4`; an empty answer cancels. The list needs a terminal. With `--remote` it lists origin branches, and with `--both` it lists only branches that exist both locally and on origin, shown as `name  (local + origin)`. The checked-out branch and containers are never listed. Choosing items is the confirmation, so nothing else is asked. If a local delete fails (for example, an unmerged branch), the removal stops there and earlier picks stay deleted.
+- **`remove -b <branch>`** removes the branch on both sides: the local branch first (with `git branch -d`, so git refuses to delete an unmerged branch), then the origin branch. A side that does not exist is skipped, so a branch that lives only here is still removed. A name that exists in neither place is an error. `--local` touches only this clone; `--remote` touches only origin. Containers (`develop`, `main`, `release/*`, `hotfix/*`) are refused.
+- **`remove --branch`** with no name lists the branches and asks which to remove. By default it lists branch pairs, meaning branches that exist both here and on origin. `--local` lists local branches and `--remote` lists origin branches. Each choice is removed on the same sides as above. `-limit <n>` shows only the first `n` (all by default), and the picker numbers only those. Answer with numbers or ranges, such as `1,3-4`; an empty answer cancels. The list needs a terminal, and that is checked before anything is listed. The checked-out branch and containers are never listed. Choosing items is the confirmation, so nothing else is asked. If a delete fails (for example, an unmerged branch), the removal stops there and earlier picks stay deleted.
 - **`status`** prints the branch and how far it is ahead of or behind its origin branch, then counts staged, unstaged, untracked and conflicting files. It changes nothing.
 - **`update`** fetches `origin/develop` and merges it into the current work branch. It needs a clean working tree and refuses containers. If the merge conflicts, it aborts the merge and says so. It does not push.
 - **`undo`** runs `git reset --soft HEAD~1`: the last commit is removed and its changes stay staged. It refuses when HEAD is already on origin, because undoing a pushed commit needs a force-push.

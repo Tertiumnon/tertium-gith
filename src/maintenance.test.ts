@@ -52,7 +52,7 @@ describe("gith switch, remove, sync, clean", () => {
       expect(gith(repo, ["switch", "-b", "bad..name"]).status).toBe(1);
       expect(gith(repo, ["switch"]).status).toBe(1);
 
-      // remove: local only, then --remote, then --both, rm as alias
+      // remove: a pair by default, --local and --remote for one side, rm as alias
       git(repo, ["push", "origin", "feature"]);
       expect(gith(repo, ["remove", "-b", "feature", "--remote"]).status).toBe(
         0,
@@ -61,7 +61,7 @@ describe("gith switch, remove, sync, clean", () => {
       expect(remoteBranchExists(repo, "feature")).toBe(false);
 
       git(repo, ["push", "origin", "feature"]);
-      expect(gith(repo, ["remove", "-b", "feature", "--both"]).status).toBe(0);
+      expect(gith(repo, ["remove", "-b", "feature"]).status).toBe(0);
       expect(branchExists(repo, "feature")).toBe(false);
       expect(remoteBranchExists(repo, "feature")).toBe(false);
 
@@ -73,7 +73,7 @@ describe("gith switch, remove, sync, clean", () => {
       expect(gith(repo, ["remove", "-b", "main"]).status).toBe(1);
       expect(gith(repo, ["remove", "--remote"]).status).toBe(1);
       expect(
-        gith(repo, ["remove", "-b", "x", "--remote", "--both"]).status,
+        gith(repo, ["remove", "-b", "x", "--remote", "--local"]).status,
       ).toBe(1);
       expect(gith(repo, ["remove", "-b", "main", "-limit", "2"]).status).toBe(
         1,
@@ -134,10 +134,10 @@ describe("gith remove picker", () => {
     ]);
   });
 
-  test("candidates: both lists only branches that exist locally and on origin", () => {
+  test("candidates: pair lists only branches that exist locally and on origin", () => {
     const local = ["develop", "pair", "local-only"];
     const remote = ["develop", "pair", "remote-only"];
-    expect(candidates("both", local, remote, "other")).toEqual([
+    expect(candidates("pair", local, remote, "other")).toEqual([
       { name: "pair", label: "pair  (local + origin)" },
     ]);
   });

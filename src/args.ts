@@ -23,7 +23,7 @@ const SPECS = new Map<string, Kind>([
   ["minor", "switch"],
   ["major", "switch"],
   ["remote", "switch"],
-  ["both", "switch"],
+  ["local", "switch"],
   ["tags", "switch"],
   ["commits", "switch"],
   ["obsolete", "switch"],

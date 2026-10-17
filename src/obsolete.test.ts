@@ -60,9 +60,7 @@ describe("remove --obsolete and list --commits --graph", () => {
 
       git(repo, ["branch", "--unset-upstream", "feature"]);
       git(repo, ["branch", "other"]);
-      expect(gith(repo, ["remove", "--obsolete"]).stdout).toContain(
-        "No branches to remove.",
-      );
+      expect(gith(repo, ["remove", "--obsolete"]).status).toBe(1); // needs a terminal, checked first
 
       expect(
         gith(repo, ["list", "--commits", "--graph", "-l", "1"]).stdout,

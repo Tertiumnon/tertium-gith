@@ -28,12 +28,12 @@ Usage:
   gith release --minor         bump the minor version, from develop into main
   gith release --major         bump the major version, from develop into main
   gith switch -b <branch>    switch to a branch, creating it from develop if missing
-  gith remove -b <branch>    delete a merged local branch (git branch -d)
-  gith remove --branch [-l <n>]  list local branches and pick which to delete
-  gith remove -b <branch> --remote   also delete on origin
-  gith remove --branch --remote      list origin branches and pick which to delete
-  gith remove -b <branch> --both     delete locally, then on origin
-  gith remove --branch --both        list branches that exist locally and on origin, and pick
+  gith remove -b <branch>    delete the branch here and on origin (either side may be missing)
+  gith remove -b <branch> --local    delete only the local branch (git branch -d)
+  gith remove -b <branch> --remote   delete only the origin branch
+  gith remove --branch [-l <n>]      list branch pairs (here and on origin) and pick which to delete
+  gith remove --branch --local       list local branches and pick
+  gith remove --branch --remote      list origin branches and pick
   gith rm                    alias of remove
   gith remove --obsolete [-l <n>]  pick local branches whose origin copy was deleted
   gith list --tags [-l <n>]  tags with a local and origin column (newest 5 by default)
@@ -60,7 +60,7 @@ Usage:
 Flags follow one rule: a single dash always takes a value, a double dash never does.
   -name <value>   -b, -branch, -r, -release, -h, -hotfix, -l, -limit, -m, -message,
                   -n, -name, -count
-  --name          --patch, --minor, --major, --remote, --both, --obsolete, --tags,
+  --name          --patch, --minor, --major, --local, --remote, --obsolete, --tags,
                   --commits, --graph, --stashes
   alone           --branch (picker), --release and --hotfix (latest tag)`;
 

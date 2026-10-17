@@ -12,7 +12,8 @@ import {
 } from "./git";
 import { isContainer } from "./rules";
 
-type Scope = "local" | "remote" | "both";
+// pair: the local branch and its origin copy together (the default). local or remote: one side only.
+type Scope = "pair" | "local" | "remote";
 
 export interface Option {
   name: string;
@@ -127,11 +128,6 @@ async function choose(options: Option[], limit?: number): Promise<string[]> {
     return [];
   }
   const shown = limit === undefined ? options : options.slice(0, limit);
-  if (!process.stdin.isTTY) {
-    throw new Error(
-      "pass a branch name with -b, e.g. gith remove -b <branch>; the list needs a terminal",
-    );
-  }
   for (const [i, option] of shown.entries()) {
     console.log(`  ${i + 1}. ${option.label}`);
   }
@@ -153,6 +149,15 @@ async function choose(options: Option[], limit?: number): Promise<string[]> {
   }
 }
 
+// The picker asks a question, so it needs a terminal. Checked before any listing.
+function requireTerminal(): void {
+  if (!process.stdin.isTTY) {
+    throw new Error(
+      "pass a branch name with -b, e.g. gith remove -b <branch>; the list needs a terminal",
+    );
+  }
+}
+
 // Lists the candidates for a scope and reads which ones to remove.
 function pick(scope: Scope, limit?: number): Promise<string[]> {
   const remote = scope === "local" ? [] : remoteBranches();
@@ -166,36 +171,51 @@ function currentBranch(): string {
   return capture("rev-parse --abbrev-ref HEAD");
 }
 
-// Deletes the local branch (git branch -d refuses unmerged ones), the origin branch, or both.
+// Deletes the local branch (git branch -d refuses unmerged ones) and the origin branch.
+// A pair removes whichever sides exist, so a branch that only lives here is still removed.
 function removeBranches(scope: Scope, names: string[]): void {
   for (const name of names) {
-    if (scope !== "remote") gitArgs(["branch", "-d", "--", name]);
-    if (scope !== "local") gitArgs(["push", "origin", "--delete", name]);
+    if (scope === "remote") {
+      gitArgs(["push", "origin", "--delete", name]);
+      continue;
+    }
+    if (scope === "local") {
+      gitArgs(["branch", "-d", "--", name]);
+      continue;
+    }
+    const local = hasLocal(name);
+    const remote = hasOnOrigin(name);
+    if (!local && !remote) {
+      throw new Error(`'${name}' exists neither locally nor on origin.`);
+    }
+    if (local) gitArgs(["branch", "-d", "--", name]);
+    if (remote) gitArgs(["push", "origin", "--delete", name]);
   }
 }
 
-// gith remove -b <branch> [--remote | --both]: removes that branch.
-// gith remove --branch [--remote | --both]: lists the branches and asks which to remove.
+// gith remove -b <branch> [--local | --remote]: removes the branch here and on origin, or one side.
+// gith remove --branch [--local | --remote]: lists the branches and asks which to remove.
 export async function remove(flags: Flags): Promise<void> {
   const name = flags.get("branch");
-  const picked = onlyOne(flags, ["remote", "both"]);
+  const side = onlyOne(flags, ["local", "remote"]);
+  const scope: Scope = side ?? "pair";
   if (flags.has("obsolete")) {
-    if (name !== undefined || picked)
+    if (name !== undefined || side)
       throw new Error("usage: gith remove --obsolete [-l <n>]");
     const forEachRef = captureArgs([
       "for-each-ref",
       "--format=%(refname:short)|%(upstream:track)",
       "refs/heads",
     ]);
+    requireTerminal();
     const options = obsoleteOf(forEachRef, currentBranch());
     removeBranches("local", await choose(options, parseLimit(flags)));
     return;
   }
   if (name === undefined)
     throw new Error(
-      "usage: gith remove -b <branch> [--remote | --both], or gith remove --branch to pick",
+      "usage: gith remove -b <branch> [--local | --remote], or gith remove --branch to pick",
     );
-  const scope: Scope = picked ?? "local";
 
   if (name) {
     if (flags.has("limit"))
@@ -206,6 +226,7 @@ export async function remove(flags: Flags): Promise<void> {
     removeBranches(scope, [name]);
     return;
   }
+  requireTerminal();
   removeBranches(scope, await pick(scope, parseLimit(flags)));
 }
 

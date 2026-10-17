@@ -59,7 +59,7 @@ describe("switches: a double dash only", () => {
       "minor",
       "major",
       "remote",
-      "both",
+      "local",
       "tags",
       "commits",
       "graph",
@@ -77,8 +77,8 @@ describe("switches: a double dash only", () => {
     expect(() => parseFlags(["-patch"])).toThrow(
       "-patch is a switch; write --patch.",
     );
-    expect(() => parseFlags(["-both"])).toThrow(
-      "-both is a switch; write --both.",
+    expect(() => parseFlags(["-local"])).toThrow(
+      "-local is a switch; write --local.",
     );
   });
 });
