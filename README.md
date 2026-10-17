@@ -42,6 +42,7 @@ gith switch --release               # switch to the newest release/* (local or o
 gith switch --hotfix                # switch to the newest hotfix/* (local or origin); -h 1.2.1 for one version
 gith update                         # merge origin/develop into this work branch
 gith merge                          # this branch into develop
+gith merge                          # pick the branch to merge, then the target from the list
 gith merge -r 1.2.0                 # this branch into release/1.2.0
 gith merge -h 1.2.1                 # this branch into hotfix/1.2.1
 gith merge --current-release        # this branch into the newest release/* (local or origin)
@@ -180,6 +181,7 @@ Commands that choose between flags (for example `create -b`, `-r` and `-h`, or `
 - **`create -r` / `create -h`** creates a container from its base (`develop` for release, `main` for hotfix), refusing names that already exist on origin. Like `create -b`, it does not switch.
 - **With `--release` or `--hotfix` (no value)**, the version is worked out from the highest `vX.Y.Z` tag across local tags and origin: `-r` takes the next minor (`1.2.1` → `1.3.0`), `-h` takes the next patch (`1.2.1` → `1.2.2`). With no tags yet, the first release is `0.1.0` and the first hotfix `0.0.1`. The version is printed before the branch is created.
 - **`merge --current-release`** and **`--current-hotfix`** pick the newest `release/*` or `hotfix/*` branch by version (numbers compare as numbers, so `1.10.0` beats `1.9.0`), checking both local branches and origin, and merge into it. The target must exist on origin, because the merge pushes it; a newest branch that only exists here stops the command with a message.
+- **`merge`** with no flags asks which branch to merge and which target to merge it into (develop, release/*, hotfix/*), with the arrow keys. After a merge into a target, the work branch is deleted here and on origin, after a Y/n question. Without a terminal, or on a no, it is kept. Release and hotfix branches are never deleted this way.
 - **`merge`** pushes the work branch, merges the target into it first (so conflicts happen on the work branch and are aborted cleanly), then merges it into the target with `--no-ff`, pushes, and checks that both branches match origin.
 
 Containers (`develop`, `main`, `release/*`, `hotfix/*`) can't be merged from, and only `develop`, `release/*` and `hotfix/*` can be merged into.

@@ -35,6 +35,7 @@ Start and finish work
   gith switch -commit <sha>          detach HEAD at a commit, to look at it (tracked files must be clean)
   gith switch --release | --hotfix   switch to the newest release/* or hotfix/* (local or origin); -r <v> / -h <v> for one version
   gith update                        merge origin/develop into this work branch
+  gith merge                         pick the branch to merge, then the target (develop, release/*, hotfix/*)
   gith merge [-r <v> | -h <v>]       merge this branch into develop, release/<v> or hotfix/<v>
   gith merge --current-release       merge this branch into the newest release (local or origin)
   gith merge --current-hotfix        merge this branch into the newest hotfix (local or origin)
@@ -112,7 +113,7 @@ try {
       create(parseFlags(rest));
       break;
     case "merge":
-      merge(parseFlags(rest));
+      await merge(parseFlags(rest));
       break;
     case "switch":
       await switchBranch(parseFlags(rest));

@@ -4,10 +4,13 @@ import {
   assertCleanTree,
   assertSynced,
   capture,
+  captureArgs,
   git,
   gitArgs,
+  hasLocal,
   hasOnOrigin,
 } from "../git/git";
+import { confirm, select } from "../prompt/prompt";
 import { containerName, isContainer, isTarget } from "../rules/rules";
 import { newestContainer, nextContainerVersion, open } from "./flow.utils";
 
@@ -29,7 +32,9 @@ export function create(flags: Flags): void {
 }
 
 // gith merge [-r <version> | -h <version>]: merges this branch into develop by default.
-export function merge(flags: Flags): void {
+// Without flags, asks which branch to merge and which branch to merge it into.
+export async function merge(flags: Flags): Promise<void> {
+  if (flags.size === 0) return mergePick();
   const kind = onlyOne(flags, [
     "release",
     "hotfix",
@@ -48,7 +53,7 @@ export function merge(flags: Flags): void {
     }
     target = containerName(kind, version);
   }
-  mergeInto(target);
+  await mergeInto(target);
 }
 
 // Creates a work branch named by its goal, from origin/develop, and pushes it with upstream
@@ -68,9 +73,10 @@ export function createBranch(goal: string, from?: string): void {
 }
 
 // Merges the current work branch into the target branch.
-function mergeInto(target: string): void {
+async function mergeInto(target: string, from?: string): Promise<void> {
   if (!isTarget(target)) throw new Error(`'${target}' is not a valid target.`);
-  const source = capture("rev-parse --abbrev-ref HEAD");
+  const current = capture("rev-parse --abbrev-ref HEAD");
+  const source = from ?? current;
   if (isContainer(source))
     throw new Error(`'${source}' is a container and cannot be merged from.`);
   if (source === target)
@@ -78,6 +84,7 @@ function mergeInto(target: string): void {
   if (!hasOnOrigin(target))
     throw new Error(`'${target}' does not exist on origin.`);
   assertCleanTree();
+  if (source !== current) gitArgs(["switch", "--", source]);
 
   if (hasOnOrigin(source)) git(`pull origin ${source}`);
   git(`push -u origin ${source}`);
@@ -103,4 +110,74 @@ function mergeInto(target: string): void {
   console.log(
     `\n✅ '${source}' merged into '${target}', both in sync with origin.`,
   );
+  await deleteMergedBranch(source);
+}
+
+// The work branch is no longer needed once it is merged. Asks first; without a terminal, or on
+// a no, the branch is kept and the merge still stands.
+async function deleteMergedBranch(source: string): Promise<void> {
+  const local = hasLocal(source);
+  const origin = hasOnOrigin(source);
+  let yes: boolean;
+  try {
+    yes = await confirm(
+      `Delete '${source}' here and on origin, it is merged? [Y/n] `,
+    );
+  } catch {
+    yes = false;
+  }
+  if (!yes) {
+    console.log(`'${source}' kept.`);
+    return;
+  }
+  if (local) gitArgs(["branch", "-d", "--", source]);
+  if (origin) gitArgs(["push", "origin", "--delete", source]);
+}
+
+// Lists the local work branches, then the develop, release and hotfix targets, and merges the
+// picked branch into the picked target.
+async function mergePick(): Promise<void> {
+  if (!process.stdin.isTTY) {
+    throw new Error(
+      "pass -r <version> or -h <version> instead; the pickers need a terminal",
+    );
+  }
+  const current = capture("rev-parse --abbrev-ref HEAD");
+  const local = captureArgs([
+    "for-each-ref",
+    "--format=%(refname:short)",
+    "refs/heads",
+  ])
+    .split("\n")
+    .filter(Boolean);
+  const sources = local
+    .filter((name) => !isContainer(name))
+    .sort((a, b) => a.localeCompare(b))
+    .map((name) => ({
+      name,
+      label: name === current ? `${name}  (current)` : name,
+    }));
+  if (sources.length === 0) throw new Error("no work branch to merge.");
+  const [source] = await select("Which branch to merge?", sources, false);
+  if (source === undefined) return;
+  const origin = captureArgs(["ls-remote", "--heads", "origin"])
+    .split("\n")
+    .map((line) => (line.split("\t")[1] ?? "").replace(/^refs\/heads\//, ""))
+    .filter(Boolean);
+  const targets = [...new Set([...local, ...origin])]
+    .filter((name) => isTarget(name) && name !== source)
+    .sort((a, b) => a.localeCompare(b))
+    .map((name) => ({
+      name,
+      label: local.includes(name) ? name : `${name}  (origin)`,
+    }));
+  if (targets.length === 0)
+    throw new Error("no develop, release or hotfix branch to merge into.");
+  const [target] = await select(
+    `Merge '${source}' into which?`,
+    targets,
+    false,
+  );
+  if (target === undefined) return;
+  await mergeInto(target, source);
 }
