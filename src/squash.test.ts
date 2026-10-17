@@ -75,13 +75,13 @@ describe("squash", () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "gith-squash-"));
     try {
       const repo = fixture(tmp);
-      expect(gith(repo, ["squash", "-count", "2"]).status).toBe(0);
+      expect(gith(repo, ["squash", "-limit", "2"]).status).toBe(0);
       expect(subjects(repo)).toEqual(["second", "first", "initial"]);
       expect(fs.existsSync(path.join(repo, "three.txt"))).toBe(true);
       expect(git(repo, ["status", "--porcelain"]).stdout.trim()).toBe("");
 
       expect(
-        gith(repo, ["squash", "-count", "2", "-m", "combined"]).status,
+        gith(repo, ["squash", "-limit", "2", "-m", "combined"]).status,
       ).toBe(0);
       expect(subjects(repo)).toEqual(["combined", "initial"]);
     } finally {
@@ -93,20 +93,20 @@ describe("squash", () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "gith-squash-refuse-"));
     try {
       const repo = fixture(tmp);
-      expect(gith(repo, ["squash", "-count", "1"]).status).toBe(1);
+      expect(gith(repo, ["squash", "-limit", "1"]).status).toBe(1);
       expect(gith(repo, ["squash"]).status).toBe(1);
-      expect(gith(repo, ["squash", "-count", "4"]).status).toBe(1); // would reach initial
+      expect(gith(repo, ["squash", "-limit", "4"]).status).toBe(1); // would reach initial
       expect(subjects(repo)).toEqual(["third", "second", "first", "initial"]);
 
       fs.writeFileSync(path.join(repo, "dirty.txt"), "x");
-      expect(gith(repo, ["squash", "-count", "2"]).status).toBe(1);
+      expect(gith(repo, ["squash", "-limit", "2"]).status).toBe(1);
       fs.rmSync(path.join(repo, "dirty.txt"));
 
       git(repo, ["push", "-u", "origin", "work"]);
-      expect(gith(repo, ["squash", "-count", "2"]).status).toBe(1);
+      expect(gith(repo, ["squash", "-limit", "2"]).status).toBe(1);
 
       git(repo, ["switch", "main"]);
-      expect(gith(repo, ["squash", "-count", "2"]).status).toBe(1);
+      expect(gith(repo, ["squash", "-limit", "2"]).status).toBe(1);
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });
     }

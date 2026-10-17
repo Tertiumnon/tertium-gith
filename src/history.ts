@@ -1,4 +1,4 @@
-import type { Flags } from "./args";
+import { type Flags, parseLimit } from "./args";
 import {
   assertClean,
   capture,
@@ -91,21 +91,18 @@ export async function amend(flags: Flags): Promise<void> {
   if (pushed) gitArgs(["push", "--force-with-lease", "origin", branch]);
 }
 
-// gith squash -count <n> [-m <message>]: combines the last n commits into one. Without -m the
+// gith squash -limit <n> [-m <message>]: combines the last n commits into one. Without -m the
 // result keeps the oldest of them: its message and author.
 export function squash(flags: Flags): void {
-  const raw = flags.get("count");
+  const count = parseLimit(flags);
   const message = flags.get("message");
   const extra = [...flags.keys()].filter(
-    (key) => key !== "count" && key !== "message",
+    (key) => key !== "limit" && key !== "message",
   );
-  if (raw === undefined || extra.length > 0) {
-    throw new Error("usage: gith squash -count <n> [-m <message>]");
+  if (count === undefined || extra.length > 0) {
+    throw new Error("usage: gith squash -limit <n> [-m <message>]");
   }
-  if (!/^[1-9]\d*$/.test(raw))
-    throw new Error("-count needs a positive whole number.");
-  const count = Number(raw);
-  if (count < 2) throw new Error("-count needs at least 2 commits to squash.");
+  if (count < 2) throw new Error("-limit needs at least 2 commits to squash.");
 
   const branch = currentBranch();
   if (isContainer(branch))

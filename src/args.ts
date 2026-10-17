@@ -18,7 +18,6 @@ const SPECS = new Map<string, Kind>([
   ["limit", "value"],
   ["message", "value"],
   ["name", "value"],
-  ["count", "value"],
   ["days", "value"],
   ["patch", "switch"],
   ["minor", "switch"],
@@ -31,6 +30,13 @@ const SPECS = new Map<string, Kind>([
   ["graph", "switch"],
   ["stashes", "switch"],
   ["detached", "switch"],
+  ["overall", "switch"],
+  ["current-year", "switch"],
+  ["current-month", "switch"],
+  ["current-week", "switch"],
+  ["last-year", "switch"],
+  ["last-month", "switch"],
+  ["last-week", "switch"],
 ]);
 
 // Short forms, so `-b` and `-branch` mean the same flag.
@@ -47,7 +53,7 @@ const ALIASES = new Map<string, string>([
 function resolveFlag(
   token: string,
 ): { name: string; style: "single" | "double" } | undefined {
-  const match = /^(--?)([a-z]+)$/.exec(token);
+  const match = /^(--?)([a-z][a-z-]*)$/.exec(token);
   if (!match) return undefined;
   const word = match[2] ?? "";
   const name = ALIASES.get(word) ?? word;

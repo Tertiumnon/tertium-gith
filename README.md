@@ -1,6 +1,6 @@
 # gith
 
-Git helper: the branch flow from [git-convention](https://github.com/Tertiumnon/git-convention) (goal-named work branches, `release/*` and `hotfix/*` containers, merges that sync both sides with origin), plus everyday git commands: status, switch, update, undo, amend, squash, stash, remove, list, tree, sync, clean, reset, open and doctor. Any command takes `--dry-run` to show the git commands it would run. No dependencies beyond git and [Bun](https://bun.com).
+Git helper: the branch flow from [git-convention](https://github.com/Tertiumnon/git-convention) (goal-named work branches, `release/*` and `hotfix/*` containers, merges that sync both sides with origin), plus everyday git commands: status, switch, update, undo, amend, squash, stash, remove, list, tree, sync, clean, reset, open, doctor and stat. Any command takes `--dry-run` to show the git commands it would run. No dependencies beyond git and [Bun](https://bun.com).
 
 > **Very early state (0.1.0).** Commands and flags may change without notice, and the tool has only been run against throwaway test repositories. Check the result with `git log` and `git status` before you push.
 
@@ -43,11 +43,13 @@ gith list --commits                 # the last 5 commits on this branch
 gith list --commits --graph         # the same, as a branch graph
 gith list --commits -l 10           # the last 10 (-limit 10 works too)
 gith status                         # branch vs origin, and staged, unstaged and untracked counts
+gith stat                           # fun facts about this branch: biggest commit, busiest day, streaks...
+gith stat --last-week -limit 50     # the same for last week, looking at no more than 50 commits
 gith update                         # merge origin/develop into this work branch
 gith undo                           # undo the last commit, keep its changes staged (not if pushed)
 gith amend                          # fold staged changes into the last commit (not if pushed)
 gith stash -n wip                   # stash changes, including untracked files, under a name
-gith squash -count 3 [-m "msg"]     # combine the last 3 commits into one (keeps the oldest message)
+gith squash -limit 3 [-m "msg"]     # combine the last 3 commits into one (keeps the oldest message)
 gith unstash                        # bring back the latest stash
 gith list --stashes                 # the newest 5 stashes (-l for more)
 gith tree                           # working trees of this repo: path, branch, HEAD (current marked *)
@@ -74,11 +76,12 @@ One rule applies to every command: **a single dash always takes a value, and a d
 | `--release` | alone: version from the latest tag | `create` |
 | `-h <version>`, `-hotfix <version>` | value | `create`, `merge` |
 | `--hotfix` | alone: version from the latest tag | `create` |
-| `-count <n>` | value | `squash` |
+| `-limit <n>` | value | `squash`: how many commits to combine |
 | `-m <msg>`, `-message <msg>` | value | `squash` |
 | `-n <name>`, `-name <name>` | value | `stash` |
 | `-l <n>`, `-limit <n>` | value, positive whole number | every listing: `list`, `tree`, the picker |
 | `--patch`, `--minor`, `--major` | switch | `release` |
+| `--overall`, `--current-year`, `--current-month`, `--current-week`, `--last-year`, `--last-month`, `--last-week` | switch, one at a time | `stat` |
 | `--local`, `--remote` | switch | `remove` (both sides when neither is given) |
 | `--obsolete`, `--detached` | switch | `remove` |
 | `-days <n>` | value | `remove --obsolete` |
@@ -86,7 +89,7 @@ One rule applies to every command: **a single dash always takes a value, and a d
 | `--verbose` | switch | every command |
 | `--dry-run` | switch | every command |
 
-Commands that choose between flags (for example `create -b`, `-r` and `-h`, or `list --tags` and `--commits`) accept only one of them. `-limit` only applies to listings, and `-message` and `-count` only to `squash`.
+Commands that choose between flags (for example `create -b`, `-r` and `-h`, or `list --tags` and `--commits`) accept only one of them. `-limit` caps listings and `stat`, and on `squash` it sets how many commits to combine. `-message` only applies to `squash`.
 
 `--verbose` and `--dry-run` can go anywhere on the line:
 - `--dry-run` prints each git command that would change something, and runs none of them. Read-only checks still run, so a refusal (for example, "HEAD is already on origin") appears in a dry run too. `clean` and `reset` also list the files they would remove or discard.
@@ -103,7 +106,8 @@ Commands that choose between flags (for example `create -b`, `-r` and `-h`, or `
 - **`amend`** runs `git commit --amend --no-edit` to fold the staged changes into the last commit, keeping its message. It refuses with nothing staged. If HEAD is already on origin under this branch, it asks `Force-push ...? [Y/n]` first (Enter means yes; a no changes nothing). On yes it amends and runs `git push --force-with-lease origin <branch>`, which refuses if origin moved since your last fetch. The question needs a terminal, so a script cannot force-push by accident. If HEAD is on origin under another branch, it refuses.
 - **`stash`** saves changes with `git stash push --include-untracked`. `-n` names the stash. It refuses when there is nothing to save.
 - **`list --stashes`** shows the stashes, newest first, with their date and description. Like the other listings, it shows 5 by default, and `-limit` changes that.
-- **`squash -count <n>`** combines the last `n` commits on the current work branch into one, using `reset --soft` and a single commit. Without `-m` the result keeps the oldest of the combined commits, its message and author. It refuses when `n` is below 2, when `n` would reach the first commit, when a merge is among them, when any of them is already on origin, on a container, or with a dirty working tree.
+- **`squash -limit <n>`** combines the last `n` commits on the current work branch into one, using `reset --soft` and a single commit. Without `-m` the result keeps the oldest of the combined commits, its message and author. It refuses when `n` is below 2, when `n` would reach the first commit, when a merge is among them, when any of them is already on origin, on a container, or with a dirty working tree.
+- **`stat`** reads the history of the current branch and prints a table of facts: commit count, top author, the biggest commit (lines added and removed), average size, the most changed file, the busiest day, weekday and hour, the longest streak of days with a commit, night owl and weekend commits, and the conventional commit types. The period is one switch: `--overall` (the default), `--current-year`, `--current-month`, `--current-week` (weeks start on Monday), or the matching `--last-` switch for the previous year, month or week. `-limit <n>` looks only at the last `n` commits. Stat changes nothing.
 - **`unstash`** runs `git stash pop`. If it conflicts, git keeps the stash in the list.
 - **`remove --obsolete`** fetches and prunes origin, then lists the branches untouched for `-days` (default 90): no commit newer than the cutoff on either side. Each line shows the sides and the last commit date, and the command asks `Remove these N branches here and on origin? [Y/n]`. Enter means yes. `--local` looks at and removes only local branches. `-limit` shows only the first `n`, and the prompt covers only those. `main`, `develop`, `release/*` and `hotfix/*` are never removed, and neither is the checked-out branch. Each branch is deleted locally first (`git branch -d`), so a branch that git does not see as merged stops the run before its origin copy is touched.
 - **`remove --detached`** fetches and prunes origin, then lists local branches that have no origin copy and lets you pick from them, the same as `remove --branch --local` but for branches with no origin copy only.

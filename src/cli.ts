@@ -10,6 +10,7 @@ import { clean, remove, reset, switchBranch, sync } from "./maintenance";
 import { open } from "./open";
 import { release } from "./release";
 import { stash, unstash } from "./stash";
+import { stat } from "./stat";
 import { status } from "./status";
 import { tree } from "./tree";
 
@@ -46,7 +47,9 @@ Usage:
   gith undo                  undo the last commit, keep its changes staged (not if pushed)
   gith amend                 add staged changes to the last commit, keep its message (if pushed: asks, then force-pushes)
   gith stash [-n <name>]     stash changes, including untracked files
-  gith squash -count <n> [-m <msg>]  combine the last n commits into one (keeps the oldest message)
+  gith squash -limit <n> [-m <msg>]  combine the last n commits into one (keeps the oldest message)
+  gith stat [period] [-limit <n>]    fun facts about this branch: biggest commit, busiest day, streaks...
+                                     period: --overall (default), --current-year|-month|-week, --last-year|-month|-week
   gith unstash               bring back the latest stash
   gith open                  open this repository's origin in the browser
   gith doctor                check the repo is ready for the branch flow (exit 1 on failures)
@@ -60,7 +63,7 @@ Usage:
 
 Flags follow one rule: a single dash always takes a value, a double dash never does.
   -name <value>   -b, -branch, -r, -release, -h, -hotfix, -l, -limit, -m, -message,
-                  -n, -name, -count
+                  -n, -name, -limit (squash: how many commits)
   --name          --patch, --minor, --major, --local, --remote, --obsolete, --detached, --tags,
                   --commits, --graph, --stashes
   alone           --branch (picker), --release and --hotfix (latest tag)`;
@@ -113,6 +116,9 @@ try {
       break;
     case "squash":
       squash(parseFlags(rest));
+      break;
+    case "stat":
+      stat(parseFlags(rest));
       break;
     case "stash":
       stash(parseFlags(rest));

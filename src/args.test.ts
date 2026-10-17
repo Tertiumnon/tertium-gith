@@ -9,7 +9,6 @@ describe("value flags: a single dash always takes a value", () => {
     expect(parseFlags(["-limit", "10"]).get("limit")).toBe("10");
     expect(parseFlags(["-n", "wip"]).get("name")).toBe("wip");
     expect(parseFlags(["-m", "msg"]).get("message")).toBe("msg");
-    expect(parseFlags(["-count", "3"]).get("count")).toBe("3");
   });
 
   test("a single dash without a value is an error", () => {
