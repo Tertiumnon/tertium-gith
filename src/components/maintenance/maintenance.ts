@@ -168,9 +168,11 @@ export async function remove(flags: Flags): Promise<void> {
     throw new Error("use only one of: --obsolete, --detached.");
   if (flags.has("days") && !obsoleteOn)
     throw new Error("-days only applies to --obsolete.");
+  if (flags.has("all") && !detachedOn)
+    throw new Error("--all only applies to --detached.");
   if (obsoleteOn || detachedOn) {
     const usage = detachedOn
-      ? "usage: gith remove --detached [-l <n>]"
+      ? "usage: gith remove --detached [--all | -l <n>]"
       : "usage: gith remove --obsolete [--local] [-days <n>] [-l <n>]";
     if (
       name !== undefined ||
@@ -387,9 +389,22 @@ async function obsolete(flags: Flags, scope: "pair" | "local"): Promise<void> {
 
 // gith remove --detached: local branches with no origin copy, picked from a list.
 async function detached(flags: Flags): Promise<void> {
-  requireTerminal();
   gitArgs(["fetch", "--prune", "origin"]);
   const options = detachedOptions(readTimes(), currentBranch());
+  if (flags.has("all")) {
+    if (flags.has("limit")) throw new Error("use only one of: --all, -limit.");
+    if (options.length === 0) {
+      console.log("No detached branches to remove.");
+      return;
+    }
+    // removeBranches lists every branch and asks Y/n once before anything is deleted.
+    await removeBranches(
+      "local",
+      options.map((option) => option.name),
+    );
+    return;
+  }
+  requireTerminal();
   await removeBranches("local", await choose(options, parseLimit(flags)));
 }
 
