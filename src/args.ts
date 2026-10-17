@@ -1,38 +1,37 @@
 // Parses the flags of a gith command. Value flags consume the next token; switches stand alone.
 export type Flags = Map<string, string>;
 
-// How a flag takes its value, for single-dash (-x) and double-dash (--x) forms.
-//   none     switch, stored as "true"
-//   required takes a value, stored as given
-//   auto     switch that means "pick it for me", stored as ""; takes no value
-//   optional takes a value when one follows, otherwise stored as ""
-interface Modes {
-  single: "none" | "required" | "auto" | "optional";
-  double: "none" | "required" | "auto" | "optional";
-}
+// The flag convention, enforced here:
+//   -name <value>   a single dash always waits for a value (-b and -branch are aliases)
+//   --name          a double dash never takes a value
+// Kinds:
+//   value   -name <value> only; --name is an error
+//   switch  --name only, stored as "true"; -name is an error
+//   auto    -name <value> for an explicit value, or --name alone for an automatic choice,
+//           stored as "" (for example --branch opens the picker, --release bumps from the tags)
+type Kind = "value" | "switch" | "auto";
 
-// Canonical flag names.
-const SPECS = new Map<string, Modes>([
-  ["branch", { single: "optional", double: "optional" }],
-  ["release", { single: "required", double: "auto" }],
-  ["hotfix", { single: "required", double: "auto" }],
-  ["patch", { single: "none", double: "none" }],
-  ["minor", { single: "none", double: "none" }],
-  ["major", { single: "none", double: "none" }],
-  ["remote", { single: "none", double: "none" }],
-  ["both", { single: "none", double: "none" }],
-  ["tags", { single: "none", double: "none" }],
-  ["commits", { single: "none", double: "none" }],
-  ["limit", { single: "required", double: "required" }],
-  ["message", { single: "required", double: "required" }],
-  ["name", { single: "required", double: "required" }],
-  ["count", { single: "required", double: "required" }],
-  ["obsolete", { single: "none", double: "none" }],
-  ["graph", { single: "none", double: "none" }],
-  ["stashes", { single: "none", double: "none" }],
+const SPECS = new Map<string, Kind>([
+  ["branch", "auto"],
+  ["release", "auto"],
+  ["hotfix", "auto"],
+  ["limit", "value"],
+  ["message", "value"],
+  ["name", "value"],
+  ["count", "value"],
+  ["patch", "switch"],
+  ["minor", "switch"],
+  ["major", "switch"],
+  ["remote", "switch"],
+  ["both", "switch"],
+  ["tags", "switch"],
+  ["commits", "switch"],
+  ["obsolete", "switch"],
+  ["graph", "switch"],
+  ["stashes", "switch"],
 ]);
 
-// Short forms, so `-b`, `-branch` and `--branch` mean the same flag.
+// Short forms, so `-b` and `-branch` mean the same flag.
 const ALIASES = new Map<string, string>([
   ["b", "branch"],
   ["r", "release"],
@@ -61,30 +60,27 @@ export function parseFlags(argv: string[]): Flags {
     const resolved = resolveFlag(token);
     if (!resolved) throw new Error(`unknown option '${token}'.`);
     const { name, style } = resolved;
-    const mode = SPECS.get(name)?.[style] ?? "none";
+    const kind = SPECS.get(name) ?? "switch";
     if (flags.has(name)) throw new Error(`'${name}' given more than once.`);
     const next = argv[i + 1];
     const hasNext = next !== undefined && !next.startsWith("-");
 
-    if (mode === "none") {
-      flags.set(name, "true");
-    } else if (mode === "auto") {
-      if (hasNext)
-        throw new Error(
-          `${token} takes no value. For an explicit version use -${name === "release" ? "r" : "h"} <version>.`,
-        );
-      flags.set(name, "");
-    } else if (mode === "optional") {
-      if (hasNext) {
-        flags.set(name, next);
-        i++;
-      } else {
-        flags.set(name, "");
-      }
-    } else {
+    if (style === "single") {
+      if (kind === "switch")
+        throw new Error(`${token} is a switch; write --${name}.`);
       if (!hasNext) throw new Error(`${token} needs a value.`);
       flags.set(name, next);
       i++;
+    } else if (kind === "switch") {
+      flags.set(name, "true");
+    } else if (kind === "value") {
+      throw new Error(`${token} takes a value; write -${name} <value>.`);
+    } else {
+      if (hasNext)
+        throw new Error(
+          `${token} takes no value. For an explicit value use -${name} <value>.`,
+        );
+      flags.set(name, "");
     }
   }
   return flags;

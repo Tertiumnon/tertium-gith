@@ -29,15 +29,17 @@ Usage:
   gith release --major         bump the major version, from develop into main
   gith switch -b <branch>    switch to a branch, creating it from develop if missing
   gith remove -b <branch>    delete a merged local branch (git branch -d)
-  gith remove -b [-l <n>]    list local branches and pick which to delete
-  gith remove -b [<branch>] --remote   also delete on origin; no name lists origin branches
-  gith remove -b [<branch>] --both     delete locally, then on origin; no name lists pairs
+  gith remove --branch [-l <n>]  list local branches and pick which to delete
+  gith remove -b <branch> --remote   also delete on origin
+  gith remove --branch --remote      list origin branches and pick which to delete
+  gith remove -b <branch> --both     delete locally, then on origin
+  gith remove --branch --both        list branches that exist locally and on origin, and pick
   gith rm                    alias of remove
   gith remove --obsolete [-l <n>]  pick local branches whose origin copy was deleted
   gith list --tags [-l <n>]  tags with a local and origin column (newest 5 by default)
   gith list --commits [--graph] [-l <n>]  newest commits on this branch (default 5)
   gith list --stashes [-l <n>]  stashes, newest first (default 5)
-  -limit <n> (-l, --limit) caps any listing: list, and the remove picker (default: all)
+  -limit <n> (or -l <n>) caps any listing: list, and the picker (default: all)
   gith status                show branch vs origin, and staged, unstaged and untracked counts
   gith update                merge origin/develop into this work branch
   gith undo                  undo the last commit, keep its changes staged (not if pushed)
@@ -55,17 +57,17 @@ Usage:
   --verbose (any command)    also print read-only git calls, such as rev-parse and ls-remote
   --dry-run (any command)    print the git commands that would run, without running them
 
-Dashes decide how a flag takes its value:
-  -r <v>, -release <v>, -h <v>, -hotfix <v>   explicit version
-  --release, --hotfix                         auto version from the latest tag
-  -b <name>, -branch <name>, --branch <name>  branch name
-  --patch | -patch, --minor | -minor, --major | -major
-  --remote, --both, --obsolete, --graph               switches; one dash works too (-remote)`;
+Flags follow one rule: a single dash always takes a value, a double dash never does.
+  -name <value>   -b, -branch, -r, -release, -h, -hotfix, -l, -limit, -m, -message,
+                  -n, -name, -count
+  --name          --patch, --minor, --major, --remote, --both, --obsolete, --tags,
+                  --commits, --graph, --stashes
+  alone           --branch (picker), --release and --hotfix (latest tag)`;
 
 // --verbose and --dry-run are global: they are removed here, so no command has to parse them.
 const args = process.argv.slice(2).filter((arg) => {
-  if (arg === "--verbose" || arg === "-verbose") setVerbose(true);
-  else if (arg === "--dry-run" || arg === "-dry-run") setDryRun(true);
+  if (arg === "--verbose") setVerbose(true);
+  else if (arg === "--dry-run") setDryRun(true);
   else return true;
   return false;
 });

@@ -29,16 +29,16 @@ gith switch -b login-redirect       # switch to the branch, creating it from dev
 gith remove -b login-redirect       # delete a merged local branch (rm is an alias)
 gith remove -b login-redirect --remote   # also delete it on origin
 gith remove -b login-redirect --both     # delete locally, then on origin
-gith remove -b                      # list local branches and pick which to delete (all of them)
+gith remove --branch                 # list local branches and pick which to delete (all of them)
 gith remove --obsolete              # pick local branches whose origin copy was deleted
-gith remove -b -l 10                 # only the first 10 in the list
-gith remove -b --remote             # list origin branches and pick
-gith remove -b --both               # list branches that exist locally and on origin, and pick
+gith remove --branch -l 10         # only the first 10 in the list
+gith remove --branch --remote     # list origin branches and pick
+gith remove --branch --both       # list branches that exist locally and on origin, and pick
 gith list --tags                    # the newest 5 tags with a LOCAL and ORIGIN column
 gith list --tags -l 20              # the newest 20
 gith list --commits                 # the last 5 commits on this branch
 gith list --commits --graph         # the same, as a branch graph
-gith list --commits -l 10           # the last 10 (-limit 10 and --limit 10 work too)
+gith list --commits -l 10           # the last 10 (-limit 10 works too)
 gith status                         # branch vs origin, and staged, unstaged and untracked counts
 gith update                         # merge origin/develop into this work branch
 gith undo                           # undo the last commit, keep its changes staged (not if pushed)
@@ -62,10 +62,10 @@ gith list --tags --verbose
 The dashes decide how a flag takes its value:
 - `-r <version>`, `-release <version>`, `-h <version>`, `-hotfix <version>`: an explicit version.
 - `--release`, `--hotfix`: no value; the version is worked out from the tags.
-- `-b <name>`, `-branch <name>`, `--branch <name>`: the branch name. Without a name, `remove -b` opens the picker.
-- `--patch` or `-patch`, and likewise `--minor` and `--major`.
+- `-b <name>`, `-branch <name>`: the branch name. `--branch` alone opens the picker in `remove`.
+- `--patch`, `--minor` and `--major`.
 
-`--remote`, `--both`, `--obsolete`, `--tags`, `--commits`, `--graph` and `--stashes` also work with one dash, as in `-remote` or `-force`. `-l` is short for `-limit`, and `-limit` works on every listing: `list --tags`, `list --commits` and the `remove -b` picker. `-m` is short for `-message` (the squash commit message), and `-n` is short for `-name` (the stash name). `-count` sets how many commits `squash` combines.
+The rule is the same for every command: a single dash always takes a value, and a double dash never does. So `-limit 10` and `-l 10` are right, while `--limit 10` and `-remote` are errors with a message pointing to the right spelling. Switches are `--remote`, `--both`, `--obsolete`, `--tags`, `--commits`, `--graph`, `--stashes`, `--patch`, `--minor` and `--major`. `-limit` (or `-l`) works on every listing: `list --tags`, `list --commits`, `list --stashes` and the picker. `-message` (or `-m`) is the squash commit message, and `-name` (or `-n`) is the stash name. `-count` sets how many commits `squash` combines.
 
 Two flags work with every command, and can go anywhere on the line:
 - `--dry-run` prints each git command that would change something, and runs none of them. Read-only checks still run, so a refusal (for example, "HEAD is already on origin") appears in a dry run too. `clean` and `reset` also list the files they would remove or discard.
@@ -73,13 +73,13 @@ Two flags work with every command, and can go anywhere on the line:
 
 Each command takes one of its flags; giving two is an error.
 
-`--verbose` (or `-verbose`) works with any command and can go anywhere on the line. Action commands always print the git commands they run, such as `> git push -u origin login`. With `--verbose`, the read-only calls are printed too, such as `rev-parse` and `ls-remote`. Commands run git directly, without a shell, so branch names are never parsed by it.
+`--verbose` works with any command and can go anywhere on the line. Action commands always print the git commands they run, such as `> git push -u origin login`. With `--verbose`, the read-only calls are printed too, such as `rev-parse` and `ls-remote`. Commands run git directly, without a shell, so branch names are never parsed by it.
 
 ## Git commands
 
 - **`switch -b`** switches to a branch. If the branch exists neither locally nor on origin, it is created first, the same way as `create -b`, and then checked out.
 - **`remove -b <branch>`** runs `git branch -d`, so git refuses to delete an unmerged branch. `--remote` deletes the branch on origin; `--both` deletes it locally first, then on origin. Containers (`develop`, `main`, `release/*`, `hotfix/*`) are refused.
-- **`remove -b`** with no name lists the branches and asks which to remove. `-limit <n>` shows only the first `n` (all by default), and the picker numbers only those. Answer with numbers or ranges, such as `1,3-4`; an empty answer cancels. The list needs a terminal. With `--remote` it lists origin branches, and with `--both` it lists only branches that exist both locally and on origin, shown as `name  (local + origin)`. The checked-out branch and containers are never listed. Choosing items is the confirmation, so nothing else is asked. If a local delete fails (for example, an unmerged branch), the removal stops there and earlier picks stay deleted.
+- **`remove --branch`** with no name lists the branches and asks which to remove. `-limit <n>` shows only the first `n` (all by default), and the picker numbers only those. Answer with numbers or ranges, such as `1,3-4`; an empty answer cancels. The list needs a terminal. With `--remote` it lists origin branches, and with `--both` it lists only branches that exist both locally and on origin, shown as `name  (local + origin)`. The checked-out branch and containers are never listed. Choosing items is the confirmation, so nothing else is asked. If a local delete fails (for example, an unmerged branch), the removal stops there and earlier picks stay deleted.
 - **`status`** prints the branch and how far it is ahead of or behind its origin branch, then counts staged, unstaged, untracked and conflicting files. It changes nothing.
 - **`update`** fetches `origin/develop` and merges it into the current work branch. It needs a clean working tree and refuses containers. If the merge conflicts, it aborts the merge and says so. It does not push.
 - **`undo`** runs `git reset --soft HEAD~1`: the last commit is removed and its changes stay staged. It refuses when HEAD is already on origin, because undoing a pushed commit needs a force-push.
@@ -93,8 +93,8 @@ Each command takes one of its flags; giving two is an error.
 - **`doctor`** checks git, a repository, origin, its reachability, `main` and `develop` on origin, and a clean working tree. It exits 1 if a required check fails, and only warns about the tree.
 - **`sync`** runs `git fetch --all --tags --prune`.
 - **`tree`** lists the working trees of the repository (`git worktree list`): each path, its branch or `(detached)`, and its short HEAD. The current one is marked `*`, and bare, locked or prunable trees are noted. `-limit <n>` caps the rows; all are shown by default.
-- **`list --tags`** shows every tag once, with yes/no columns for local and origin, so you can see which tags are unpushed or missing locally. Version tags are listed newest first, and only the first 5 are shown by default. `-limit <n>` (or `-l`, `--limit`) changes that and adds a note when rows are left out.
-- **`list --commits`** shows the newest commits on the current branch, one per line: short hash, date, author and subject. With `--graph` it draws the branch graph instead. It shows 5 by default; `-l <n>` (or `-limit`/`--limit`) changes that and must be a positive whole number. `-limit` only applies to `--commits`. `gith list` with no flag prints usage.
+- **`list --tags`** shows every tag once, with yes/no columns for local and origin, so you can see which tags are unpushed or missing locally. Version tags are listed newest first, and only the first 5 are shown by default. `-limit <n>` (or `-l <n>`) changes that and adds a note when rows are left out.
+- **`list --commits`** shows the newest commits on the current branch, one per line: short hash, date, author and subject. With `--graph` it draws the branch graph instead. It shows 5 by default; `-l <n>` (or `-limit <n>`) changes that and must be a positive whole number. `-limit` only applies to listings. `gith list` with no flag prints usage.
 - **`clean`** runs `git clean -fd`. It permanently removes untracked files and directories, but keeps ignored files.
 - **`reset`** runs `git reset --hard` (discards staged and unstaged edits on this branch), then `git clean -fd`. It cannot be undone, so commit or stash first. It does not move the branch to origin.
 

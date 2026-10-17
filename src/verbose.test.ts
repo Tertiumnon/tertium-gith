@@ -36,7 +36,7 @@ describe("--verbose", () => {
       expect(verbose.stdout).toContain(
         '> git log -n1 --date=short "--format=%h  %ad  %an  %s"',
       );
-      expect(cli(repo, ["list", "--commits", "-verbose"]).stdout).toContain(
+      expect(cli(repo, ["list", "--commits", "--verbose"]).stdout).toContain(
         "> git log -n5",
       );
     } finally {

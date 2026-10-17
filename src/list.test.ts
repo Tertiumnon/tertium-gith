@@ -123,7 +123,7 @@ describe("gith list --commits", () => {
           .split("\n"),
       ).toHaveLength(1);
       expect(
-        cli(repo, ["list", "--commits", "--limit", "10"])
+        cli(repo, ["list", "--commits", "-limit", "10"])
           .stdout.trim()
           .split("\n"),
       ).toHaveLength(7);

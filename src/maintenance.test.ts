@@ -48,7 +48,7 @@ describe("gith switch, remove, sync, clean", () => {
       expect(git(repo, ["branch", "--show-current"]).stdout.trim()).toBe(
         "feature",
       );
-      expect(gith(repo, ["switch", "--branch", "main"]).status).toBe(0);
+      expect(gith(repo, ["switch", "-b", "main"]).status).toBe(0);
       expect(gith(repo, ["switch", "-b", "bad..name"]).status).toBe(1);
       expect(gith(repo, ["switch"]).status).toBe(1);
 
@@ -163,7 +163,7 @@ describe("gith remove picker", () => {
       git(tmp, ["add", "."]);
       git(tmp, ["commit", "-m", "initial"]);
       git(tmp, ["branch", "feature"]);
-      const result = gith(tmp, ["remove", "-b"]);
+      const result = gith(tmp, ["remove", "--branch"]);
       expect(result.status).toBe(1);
       expect(result.stderr).toContain("pass a branch name with -b");
       expect(branchExists(tmp, "feature")).toBe(true);

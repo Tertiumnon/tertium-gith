@@ -1,67 +1,85 @@
 import { describe, expect, test } from "bun:test";
 import { onlyOne, parseFlags } from "./args";
 
-describe("branch flag", () => {
-  test("short, single-dash long and double-dash long forms take a value", () => {
-    for (const form of [
-      ["-b", "x"],
-      ["-branch", "x"],
-      ["--branch", "x"],
-    ]) {
-      expect(parseFlags(form).get("branch")).toBe("x");
-    }
+describe("value flags: a single dash always takes a value", () => {
+  test("short and long single-dash forms store the value", () => {
+    expect(parseFlags(["-b", "x"]).get("branch")).toBe("x");
+    expect(parseFlags(["-branch", "x"]).get("branch")).toBe("x");
+    expect(parseFlags(["-l", "10"]).get("limit")).toBe("10");
+    expect(parseFlags(["-limit", "10"]).get("limit")).toBe("10");
+    expect(parseFlags(["-n", "wip"]).get("name")).toBe("wip");
+    expect(parseFlags(["-m", "msg"]).get("message")).toBe("msg");
+    expect(parseFlags(["-count", "3"]).get("count")).toBe("3");
   });
 
-  test("a value is optional: without one the flag is stored as empty", () => {
-    expect(parseFlags(["-b"]).get("branch")).toBe("");
-    expect(parseFlags(["--branch", "--remote"]).get("branch")).toBe("");
-    expect(parseFlags(["-b", "--remote"]).has("remote")).toBe(true);
+  test("a single dash without a value is an error", () => {
+    expect(() => parseFlags(["-b"])).toThrow("-b needs a value");
+    expect(() => parseFlags(["-b", "--remote"])).toThrow("-b needs a value");
+    expect(() => parseFlags(["-limit"])).toThrow("-limit needs a value");
+  });
+
+  test("a double dash is an error for a value flag, with the right spelling", () => {
+    expect(() => parseFlags(["--limit", "10"])).toThrow(
+      "--limit takes a value; write -limit <value>.",
+    );
+    expect(() => parseFlags(["--branch", "x"])).toThrow(
+      "--branch takes no value",
+    );
+    expect(() => parseFlags(["--message", "x"])).toThrow(
+      "--message takes a value; write -message <value>.",
+    );
   });
 });
 
-describe("release and hotfix: -x <version> is explicit, --x is auto", () => {
-  test("single-dash forms take an explicit version", () => {
-    for (const form of [
-      ["-r", "1.0"],
-      ["-release", "1.0"],
-    ]) {
-      expect(parseFlags(form).get("release")).toBe("1.0");
-    }
-    for (const form of [
-      ["-h", "1.0"],
-      ["-hotfix", "1.0"],
-    ]) {
-      expect(parseFlags(form).get("hotfix")).toBe("1.0");
-    }
-  });
-
-  test("double-dash forms mean auto, stored as empty", () => {
+describe("auto flags: -x <value> is explicit, --x alone picks automatically", () => {
+  test("--branch, --release and --hotfix alone are stored as empty", () => {
+    expect(parseFlags(["--branch"]).get("branch")).toBe("");
     expect(parseFlags(["--release"]).get("release")).toBe("");
     expect(parseFlags(["--hotfix"]).get("hotfix")).toBe("");
+    expect(parseFlags(["--branch", "--remote"]).has("remote")).toBe(true);
   });
 
-  test("double-dash forms take no value", () => {
+  test("the auto flags take an explicit value only with a single dash", () => {
+    expect(parseFlags(["-r", "1.0"]).get("release")).toBe("1.0");
+    expect(parseFlags(["-release", "1.0"]).get("release")).toBe("1.0");
+    expect(parseFlags(["-h", "1.0"]).get("hotfix")).toBe("1.0");
+    expect(parseFlags(["-hotfix", "1.0"]).get("hotfix")).toBe("1.0");
     expect(() => parseFlags(["--release", "1.0"])).toThrow(
-      "--release takes no value",
+      "--release takes no value. For an explicit value use -release <value>.",
     );
-    expect(() => parseFlags(["--hotfix", "1.2.1"])).toThrow(
-      "--hotfix takes no value",
-    );
-  });
-
-  test("single-dash forms need a version", () => {
     expect(() => parseFlags(["-r"])).toThrow("-r needs a value");
-    expect(() => parseFlags(["-hotfix"])).toThrow("-hotfix needs a value");
     expect(() => parseFlags(["-r", "--patch"])).toThrow("-r needs a value");
   });
 });
 
-describe("release kinds", () => {
-  test("switches work in both dash forms and are stored as true", () => {
-    expect(parseFlags(["--patch"]).get("patch")).toBe("true");
-    expect(parseFlags(["-patch"]).get("patch")).toBe("true");
-    expect(parseFlags(["--minor"]).get("minor")).toBe("true");
-    expect(parseFlags(["-major"]).get("major")).toBe("true");
+describe("switches: a double dash only", () => {
+  test("switches are stored as true with --", () => {
+    for (const name of [
+      "patch",
+      "minor",
+      "major",
+      "remote",
+      "both",
+      "tags",
+      "commits",
+      "graph",
+      "stashes",
+      "obsolete",
+    ]) {
+      expect(parseFlags([`--${name}`]).get(name)).toBe("true");
+    }
+  });
+
+  test("a single dash is an error for a switch", () => {
+    expect(() => parseFlags(["-remote"])).toThrow(
+      "-remote is a switch; write --remote.",
+    );
+    expect(() => parseFlags(["-patch"])).toThrow(
+      "-patch is a switch; write --patch.",
+    );
+    expect(() => parseFlags(["-both"])).toThrow(
+      "-both is a switch; write --both.",
+    );
   });
 });
 
@@ -95,14 +113,5 @@ describe("onlyOne", () => {
     expect(() =>
       onlyOne(parseFlags(["-r", "1.0", "-h", "1.1"]), ["release", "hotfix"]),
     ).toThrow("use only one of");
-  });
-});
-
-describe("switches added for gith", () => {
-  test("remote and both work in both dash forms", () => {
-    for (const name of ["remote", "both"]) {
-      expect(parseFlags([`-${name}`]).get(name)).toBe("true");
-      expect(parseFlags([`--${name}`]).get(name)).toBe("true");
-    }
   });
 });

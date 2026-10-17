@@ -175,7 +175,7 @@ function removeBranches(scope: Scope, names: string[]): void {
 }
 
 // gith remove -b <branch> [--remote | --both]: removes that branch.
-// gith remove -b [--remote | --both]: lists the branches and asks which to remove.
+// gith remove --branch [--remote | --both]: lists the branches and asks which to remove.
 export async function remove(flags: Flags): Promise<void> {
   const name = flags.get("branch");
   const picked = onlyOne(flags, ["remote", "both"]);
@@ -192,14 +192,14 @@ export async function remove(flags: Flags): Promise<void> {
     return;
   }
   if (name === undefined)
-    throw new Error("usage: gith remove -b [<branch>] [--remote | --both]");
+    throw new Error(
+      "usage: gith remove -b <branch> [--remote | --both], or gith remove --branch to pick",
+    );
   const scope: Scope = picked ?? "local";
 
   if (name) {
     if (flags.has("limit"))
-      throw new Error(
-        "-limit only applies to listings: gith remove -b with no name.",
-      );
+      throw new Error("-limit only applies to listings: gith remove --branch.");
     assertBranchName(name);
     if (isContainer(name))
       throw new Error(`'${name}' is a container and cannot be removed.`);
