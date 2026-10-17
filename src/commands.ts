@@ -86,12 +86,17 @@ function newestContainer(kind: ContainerKind): string {
 
 // Creates a work branch named by its goal, from origin/develop, and pushes it with upstream
 // tracking. Leaves the current branch checked out.
-export function createBranch(goal: string): void {
+// `from` is the commit to start from; by default the latest origin/develop.
+export function createBranch(goal: string, from?: string): void {
   if (isContainer(goal))
     throw new Error(`'${goal}' is a container name; pick a goal.`);
   if (hasOnOrigin(goal)) throw new Error(`'${goal}' already exists on origin.`);
-  gitArgs(["fetch", "origin", "develop"]);
-  gitArgs(["branch", goal, "origin/develop"]);
+  if (from === undefined) {
+    gitArgs(["fetch", "origin", "develop"]);
+    gitArgs(["branch", goal, "origin/develop"]);
+  } else {
+    gitArgs(["branch", goal, from]);
+  }
   gitArgs(["push", "-u", "origin", goal]);
 }
 

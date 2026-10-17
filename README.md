@@ -29,6 +29,7 @@ gith create -h 1.2.1                # hotfix/1.2.1 from main
 gith create --release               # release, version = minor after the latest tag
 gith create --hotfix                # hotfix, version = patch after the latest tag
 gith switch -b login-redirect       # switch to the branch, creating it from develop if it is missing
+gith switch -commit 3f2a1b9         # detach HEAD at that commit, to look at old code
 gith update                         # merge origin/develop into this work branch
 gith merge                          # this branch into develop
 gith merge -r 1.2.0                 # this branch into release/1.2.0
@@ -128,6 +129,7 @@ Commands that choose between flags (for example `create -b`, `-r` and `-h`, or `
 ## Git commands
 
 - **`switch -b`** switches to a branch. If the branch exists neither locally nor on origin, it is created first, the same way as `create -b`, and then checked out.
+- **`switch -commit <sha>`** detaches HEAD at that commit so you can look at old code. It refuses a commit that does not exist, and it refuses while tracked files have changes (untracked files do not block it). It lists the files that block it, and points to `gith stash`. On a detached HEAD, `gith switch -b <name>` creates the branch at the current commit, so commits made there stay on it. It does not create or switch branches for other commits, so commits made on a detached HEAD are easy to lose: name a branch before you leave.
 - **`remove -b <branch>`** removes the branch on both sides: the local branch first (with `git branch -d`, so git refuses to delete an unmerged branch), then the origin branch. A side that does not exist is skipped, so a branch that lives only here is still removed. A name that exists in neither place is an error. `--local` touches only this clone; `--remote` touches only origin. Containers (`develop`, `main`, `release/*`, `hotfix/*`) are refused.
 - **`remove --branch`** with no name lists the branches and asks which to remove. By default it lists branch pairs, meaning branches that exist both here and on origin. `--local` lists local branches and `--remote` lists origin branches. Each choice is removed on the same sides as above. `-limit <n>` shows only the first `n` (all by default), and the picker numbers only those. Answer with numbers or ranges, such as `1,3-4`; an empty answer cancels. The list needs a terminal, and that is checked before anything is listed. The checked-out branch and containers are never listed. Choosing items is the confirmation, so nothing else is asked. If a delete fails (for example, an unmerged branch), the removal stops there and earlier picks stay deleted.
 - **`status`** prints the branch and how far it is ahead of or behind its origin branch, then counts staged, unstaged, untracked and conflicting files. It changes nothing.

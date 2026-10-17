@@ -3,11 +3,13 @@ import { type Flags, onlyOne, parseLimit } from "./args";
 import { createBranch } from "./commands";
 import {
   assertBranchName,
+  assertCleanTree,
   capture,
   captureArgs,
   gitArgs,
   hasLocal,
   hasOnOrigin,
+  isDetached,
   isDryRun,
 } from "./git";
 import { confirm } from "./prompt";
@@ -34,10 +36,36 @@ function requireBranch(flags: Flags, command: string): string {
 
 // gith switch -b <branch>: switches to the branch. If it exists neither here nor on origin,
 // it is created first, the same way as gith create -b.
+// gith switch -commit <sha>: detaches HEAD at that commit, after the tracked files are clean.
+// On a detached HEAD, gith switch -b creates the branch at the current commit, so new commits
+// stay on it.
 export function switchBranch(flags: Flags): void {
+  const commit = flags.get("commit");
+  if (commit !== undefined) {
+    if (flags.has("branch") || flags.size > 1)
+      throw new Error("use only one of: -b, -commit.");
+    switchToCommit(commit);
+    return;
+  }
   const branch = requireBranch(flags, "switch");
-  if (!hasLocal(branch) && !hasOnOrigin(branch)) createBranch(branch);
+  if (!hasLocal(branch) && !hasOnOrigin(branch)) {
+    createBranch(branch, isDetached() ? "HEAD" : undefined);
+  }
   gitArgs(["switch", "--", branch]);
+}
+
+function switchToCommit(ref: string): void {
+  let sha: string;
+  try {
+    sha = captureArgs(["rev-parse", "--verify", "--quiet", `${ref}^{commit}`]);
+  } catch {
+    throw new Error(`'${ref}' is not a commit in this repository.`);
+  }
+  assertCleanTree();
+  gitArgs(["switch", "--detach", sha]);
+  console.log(
+    `HEAD is detached at ${sha.slice(0, 7)}. To keep commits made here, run: gith switch -b <name>.`,
+  );
 }
 
 // Branches that can be offered for removal. Containers are never offered, and the

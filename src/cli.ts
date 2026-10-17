@@ -23,7 +23,8 @@ Start and finish work
   gith create -r <version>           release/<version> from develop
   gith create -h <version>           hotfix/<version> from main
   gith create --release | --hotfix   version from the latest tag: minor for release, patch for hotfix
-  gith switch -b <branch>            switch to a branch, creating it from develop if missing
+  gith switch -b <branch>            switch to a branch, creating it from develop if missing (on a detached HEAD: from that commit)
+  gith switch -commit <sha>          detach HEAD at a commit, to look at it (tracked files must be clean)
   gith update                        merge origin/develop into this work branch
   gith merge [-r <v> | -h <v>]       merge this branch into develop, release/<v> or hotfix/<v>
   gith merge --current-release       merge this branch into the newest release (local or origin)

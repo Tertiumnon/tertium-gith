@@ -92,6 +92,39 @@ export function assertClean(): void {
   }
 }
 
+// Tracked files only: untracked files do not block. Refreshes the index first, so files that
+// only differ in stat information (line endings, file times) are not reported as changed.
+export function assertCleanTree(): void {
+  try {
+    captureArgs(["update-index", "-q", "--refresh"]);
+  } catch {
+    // update-index exits non-zero when files differ; the status below lists them.
+  }
+  const changed = captureArgs(["status", "--porcelain", "--untracked-files=no"])
+    .split("\n")
+    .filter(Boolean);
+  if (changed.length === 0) return;
+  const shown = changed
+    .slice(0, 10)
+    .map((line) => `  ${line}`)
+    .join("\n");
+  const more =
+    changed.length > 10 ? `\n  ... and ${changed.length - 10} more` : "";
+  throw new Error(
+    `uncommitted changes to tracked files:\n${shown}${more}\ncommit them, or stash them with gith stash.`,
+  );
+}
+
+// True when HEAD is not on a branch.
+export function isDetached(): boolean {
+  try {
+    captureArgs(["symbolic-ref", "-q", "HEAD"]);
+    return false;
+  } catch {
+    return true;
+  }
+}
+
 // Fetches origin and fails if any branch differs from its origin copy.
 export function assertSynced(branches: string[]): void {
   // A dry run has not pushed or merged anything, so the refs would not match.
