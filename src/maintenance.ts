@@ -34,6 +34,14 @@ export function sync(flags: Flags): void {
   gitArgs(["fetch", "--all", "--tags", "--prune"]);
 }
 
+// gith reset: discards uncommitted changes on this branch and removes untracked files
+// and directories. Ignored files are kept. Nothing here can be undone.
+export function reset(flags: Flags): void {
+  noFlags(flags, "reset");
+  gitArgs(["reset", "--hard"]);
+  gitArgs(["clean", "-fd"]);
+}
+
 // gith clean: removes untracked files and directories. Ignored files are kept.
 export function clean(flags: Flags): void {
   noFlags(flags, "clean");

@@ -3,7 +3,7 @@ import { exit } from "node:process";
 import { onlyOne, parseFlags } from "./args";
 import { create, merge } from "./commands";
 import { setup } from "./hooks";
-import { clean, remove, switchBranch, sync } from "./maintenance";
+import { clean, remove, reset, switchBranch, sync } from "./maintenance";
 import { release } from "./release";
 
 const USAGE = `gith - git helper: branch flow and everyday git commands
@@ -27,6 +27,7 @@ Usage:
   gith rm                    alias of remove
   gith sync                  fetch all remotes, tags, and prune stale refs
   gith clean                 remove untracked files and directories (keeps ignored)
+  gith reset                 discard uncommitted changes and untracked files (hard reset + clean)
   gith setup -hooks [--force]  write .githooks/pre-commit and set core.hooksPath
   gith help                  show this help
 
@@ -59,6 +60,9 @@ try {
       break;
     case "clean":
       clean(parseFlags(rest));
+      break;
+    case "reset":
+      reset(parseFlags(rest));
       break;
     case "setup":
       setup(parseFlags(rest));

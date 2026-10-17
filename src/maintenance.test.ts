@@ -96,6 +96,19 @@ describe("gith switch, remove, sync, clean", () => {
       expect(gith(repo, ["clean"]).status).toBe(0);
       expect(fs.existsSync(path.join(repo, "untracked.txt"))).toBe(false);
       expect(fs.existsSync(path.join(repo, "untracked-dir"))).toBe(false);
+
+      // reset discards staged and unstaged edits, and untracked files
+      fs.writeFileSync(path.join(repo, "tracked.txt"), "edited");
+      fs.writeFileSync(path.join(repo, "staged.txt"), "x");
+      git(repo, ["add", "staged.txt"]);
+      fs.writeFileSync(path.join(repo, "untracked.txt"), "x");
+      expect(gith(repo, ["reset"]).status).toBe(0);
+      expect(fs.readFileSync(path.join(repo, "tracked.txt"), "utf8")).toBe(
+        "tracked",
+      );
+      expect(fs.existsSync(path.join(repo, "staged.txt"))).toBe(false);
+      expect(fs.existsSync(path.join(repo, "untracked.txt"))).toBe(false);
+      expect(gith(repo, ["reset", "-b", "x"]).status).toBe(1);
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });
     }

@@ -26,6 +26,7 @@ gith remove -b login-redirect --remote   # also delete it on origin
 gith remove -b login-redirect --both     # delete locally, then on origin
 gith sync                           # fetch all remotes and tags, prune stale refs
 gith clean                          # remove untracked files and directories
+gith reset                          # discard uncommitted changes, then clean
 gith setup -hooks [--force]         # write .githooks/pre-commit, set core.hooksPath
 ```
 
@@ -45,6 +46,7 @@ Each command takes one of its flags; giving two is an error.
 - **`remove -b`** runs `git branch -d`, so git refuses to delete an unmerged branch. `--remote` deletes the branch on origin; `--both` deletes it locally first, then on origin. Containers (`develop`, `main`, `release/*`, `hotfix/*`) are refused.
 - **`sync`** runs `git fetch --all --tags --prune`.
 - **`clean`** runs `git clean -fd`. It permanently removes untracked files and directories, but keeps ignored files.
+- **`reset`** runs `git reset --hard` (discards staged and unstaged edits on this branch), then `git clean -fd`. It cannot be undone, so commit or stash first. It does not move the branch to origin.
 - **`setup -hooks`** writes `.githooks/pre-commit`, points `core.hooksPath` at it, and adds a `prepare` script so every clone gets the hook. The hook runs `lint`, `typecheck` (always for TypeScript projects) and `test` (only when defined), using the package manager from the lockfile. `--force` overwrites an existing hook.
 
 ## What it does
@@ -76,6 +78,7 @@ The git commands from [@tertium/hlpr](https://github.com/Tertiumnon/tertium-hlpr
 | `hlpr git rm <b> -remote` / `-both` | `gith remove -b <b> --remote` / `--both` |
 | `hlpr git sync` | `gith sync` |
 | `hlpr git clean` | `gith clean` |
+| (new) | `gith reset`: hard reset plus clean |
 | `hlpr git setup -hooks [--force]` | `gith setup -hooks [--force]` |
 | `hlpr git create -b <b>` (branch without switching) | not moved: `gith create -b` is the flow command and starts from develop |
 
