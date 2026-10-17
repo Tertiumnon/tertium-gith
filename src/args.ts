@@ -5,14 +5,15 @@ export type Flags = Map<string, string>;
 //   none     switch, stored as "true"
 //   required takes a value, stored as given
 //   auto     switch that means "pick it for me", stored as ""; takes no value
+//   optional takes a value when one follows, otherwise stored as ""
 interface Modes {
-  single: "none" | "required" | "auto";
-  double: "none" | "required" | "auto";
+  single: "none" | "required" | "auto" | "optional";
+  double: "none" | "required" | "auto" | "optional";
 }
 
 // Canonical flag names.
 const SPECS = new Map<string, Modes>([
-  ["branch", { single: "required", double: "required" }],
+  ["branch", { single: "optional", double: "optional" }],
   ["release", { single: "required", double: "auto" }],
   ["hotfix", { single: "required", double: "auto" }],
   ["patch", { single: "none", double: "none" }],
@@ -63,6 +64,13 @@ export function parseFlags(argv: string[]): Flags {
           `${token} takes no value. For an explicit version use -${name === "release" ? "r" : "h"} <version>.`,
         );
       flags.set(name, "");
+    } else if (mode === "optional") {
+      if (hasNext) {
+        flags.set(name, next);
+        i++;
+      } else {
+        flags.set(name, "");
+      }
     } else {
       if (!hasNext) throw new Error(`${token} needs a value.`);
       flags.set(name, next);

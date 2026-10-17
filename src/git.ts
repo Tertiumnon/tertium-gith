@@ -11,6 +11,11 @@ export function gitArgs(args: string[]): void {
   execFileSync("git", args, { stdio: "inherit" });
 }
 
+// Like capture, with an argument list.
+export function captureArgs(args: string[]): string {
+  return execFileSync("git", args, { encoding: "utf-8" }).trim();
+}
+
 // Throws unless `name` is a valid branch name for git.
 export function assertBranchName(name: string): void {
   try {

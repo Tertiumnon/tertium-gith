@@ -12,9 +12,10 @@ describe("branch flag", () => {
     }
   });
 
-  test("a value is required", () => {
-    expect(() => parseFlags(["-b"])).toThrow("-b needs a value");
-    expect(() => parseFlags(["--branch"])).toThrow("--branch needs a value");
+  test("a value is optional: without one the flag is stored as empty", () => {
+    expect(parseFlags(["-b"]).get("branch")).toBe("");
+    expect(parseFlags(["--branch", "--remote"]).get("branch")).toBe("");
+    expect(parseFlags(["-b", "--remote"]).has("remote")).toBe(true);
   });
 });
 

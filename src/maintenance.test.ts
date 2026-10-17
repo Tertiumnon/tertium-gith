@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { candidates, parseSelection } from "./maintenance";
 
 const CLI = path.resolve(import.meta.dir, "cli.ts");
 
@@ -113,4 +114,58 @@ describe("gith switch, remove, sync, clean", () => {
       fs.rmSync(tmp, { recursive: true, force: true });
     }
   }, 60_000);
+});
+
+describe("gith remove picker", () => {
+  test("candidates: local skips containers and the current branch", () => {
+    const local = ["main", "develop", "feature", "current"];
+    expect(candidates("local", local, [], "current")).toEqual([
+      { name: "feature", label: "feature" },
+    ]);
+  });
+
+  test("candidates: remote lists origin branches without containers", () => {
+    const remote = ["main", "release/1.0.0", "feature"];
+    expect(candidates("remote", [], remote, "feature")).toEqual([
+      { name: "feature", label: "feature  (origin)" },
+    ]);
+  });
+
+  test("candidates: both lists only branches that exist locally and on origin", () => {
+    const local = ["develop", "pair", "local-only"];
+    const remote = ["develop", "pair", "remote-only"];
+    expect(candidates("both", local, remote, "other")).toEqual([
+      { name: "pair", label: "pair  (local + origin)" },
+    ]);
+  });
+
+  test("parseSelection reads numbers and ranges, drops duplicates, rejects bad input", () => {
+    expect(parseSelection("1,3-4", 5)).toEqual([0, 2, 3]);
+    expect(parseSelection("2, 2", 3)).toEqual([1]);
+    expect(parseSelection("", 3)).toEqual([]);
+    expect(() => parseSelection("4", 3)).toThrow(
+      "'4' is not a choice from 1 to 3.",
+    );
+    expect(() => parseSelection("2-1", 3)).toThrow();
+    expect(() => parseSelection("x", 3)).toThrow();
+  });
+
+  test("without a terminal, the list is not shown and -b needs a name", () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "gith-pick-"));
+    try {
+      git(tmp, ["init", "-b", "main"]);
+      git(tmp, ["config", "user.email", "test@example.com"]);
+      git(tmp, ["config", "user.name", "Test"]);
+      fs.writeFileSync(path.join(tmp, "a.txt"), "a");
+      git(tmp, ["add", "."]);
+      git(tmp, ["commit", "-m", "initial"]);
+      git(tmp, ["branch", "feature"]);
+      const result = gith(tmp, ["remove", "-b"]);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("pass a branch name with -b");
+      expect(branchExists(tmp, "feature")).toBe(true);
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
 });

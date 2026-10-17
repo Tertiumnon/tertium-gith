@@ -22,8 +22,9 @@ Usage:
   gith release --major         bump the major version, from develop into main
   gith switch -b <branch>    switch to a branch
   gith remove -b <branch>    delete a merged local branch (git branch -d)
-  gith remove -b <branch> --remote   also delete it on origin
-  gith remove -b <branch> --both     delete it locally, then on origin
+  gith remove -b             list local branches and pick which to delete
+  gith remove -b [<branch>] --remote   also delete on origin; no name lists origin branches
+  gith remove -b [<branch>] --both     delete locally, then on origin; no name lists pairs
   gith rm                    alias of remove
   gith sync                  fetch all remotes, tags, and prune stale refs
   gith clean                 remove untracked files and directories (keeps ignored)
@@ -53,7 +54,7 @@ try {
       break;
     case "remove":
     case "rm":
-      remove(parseFlags(rest));
+      await remove(parseFlags(rest));
       break;
     case "sync":
       sync(parseFlags(rest));

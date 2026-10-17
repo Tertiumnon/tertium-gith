@@ -24,6 +24,9 @@ gith switch -b login-redirect       # switch to a branch
 gith remove -b login-redirect       # delete a merged local branch (rm is an alias)
 gith remove -b login-redirect --remote   # also delete it on origin
 gith remove -b login-redirect --both     # delete locally, then on origin
+gith remove -b                      # list local branches and pick which to delete
+gith remove -b --remote              # list origin branches and pick
+gith remove -b --both                # list branches that exist locally and on origin, pick
 gith sync                           # fetch all remotes and tags, prune stale refs
 gith clean                          # remove untracked files and directories
 gith reset                          # discard uncommitted changes, then clean
@@ -43,7 +46,8 @@ Each command takes one of its flags; giving two is an error.
 ## Git commands
 
 - **`switch -b`** switches to a branch.
-- **`remove -b`** runs `git branch -d`, so git refuses to delete an unmerged branch. `--remote` deletes the branch on origin; `--both` deletes it locally first, then on origin. Containers (`develop`, `main`, `release/*`, `hotfix/*`) are refused.
+- **`remove -b <branch>`** runs `git branch -d`, so git refuses to delete an unmerged branch. `--remote` deletes the branch on origin; `--both` deletes it locally first, then on origin. Containers (`develop`, `main`, `release/*`, `hotfix/*`) are refused.
+- **`remove -b`** with no name lists the branches and asks which to remove. Answer with numbers or ranges, such as `1,3-4`; an empty answer cancels. The list needs a terminal. With `--remote` it lists origin branches, and with `--both` it lists only branches that exist both locally and on origin, shown as `name  (local + origin)`. The checked-out branch and containers are never listed. Choosing items is the confirmation, so nothing else is asked. If a local delete fails (for example, an unmerged branch), the removal stops there and earlier picks stay deleted.
 - **`sync`** runs `git fetch --all --tags --prune`.
 - **`clean`** runs `git clean -fd`. It permanently removes untracked files and directories, but keeps ignored files.
 - **`reset`** runs `git reset --hard` (discards staged and unstaged edits on this branch), then `git clean -fd`. It cannot be undone, so commit or stash first. It does not move the branch to origin.
