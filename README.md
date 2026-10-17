@@ -96,6 +96,10 @@ gith doctor                         # check the repo is ready for the branch flo
 gith changelog --dry-run            # preview the CHANGELOG.md entry for package.json's version
 gith changelog                      # write it as its own commit (docs(changelog): <version>); --no-commit only writes
 
+# Set up
+gith setup -n npm                   # write .githooks/pre-commit (lint, typecheck, test) and set core.hooksPath
+gith setup -n npm --force           # overwrite an existing hook
+
 # Help
 gith help                           # full usage
 gith --version                      # the version, with the mascot
@@ -162,6 +166,7 @@ Commands that choose between flags (for example `create -b`, `-r` and `-h`, or `
 - **`remove --detached`** fetches and prunes origin, then lists local branches that have no origin copy and lets you pick from them, the same as `remove --branch --local` but for branches with no origin copy only.
 - **Every removal shows what it will remove** before deleting anything, including the direct `remove -b` form. The picker and the prompt both show it first.
 - **`open`** opens origin in the browser, turning an `ssh` or `https` remote into a web address. GitHub and GitLab style addresses work.
+- **`setup -n npm`** writes `.githooks/pre-commit` for an npm project and sets `core.hooksPath` to `.githooks`, so every clone runs the same checks. The hook runs `lint`, `typecheck` and `test` (the scripts are picked up from package.json; TypeScript projects always run `lint` and `typecheck`, and `test` only when it exists). It uses the package manager from the lockfile (`bun`, `pnpm`, `yarn`, or `npm`). It adds a `prepare` script so installing the project turns the hooks on again. It refuses to overwrite an existing hook unless `--force` is given, and it must run in the folder that holds `.git`. Only `npm` is supported for now.
 - **`doctor`** checks git, a repository, origin, its reachability, `main` and `develop` on origin, and a clean working tree. It exits 1 if a required check fails, and only warns about the tree.
 - **`sync`** runs `git fetch --all --tags --prune`.
 - **`tree`** lists the working trees of the repository (`git worktree list`): each path, its branch or `(detached)`, and its short HEAD. The current one is marked `*`, and bare, locked or prunable trees are noted. `-limit <n>` caps the rows; all are shown by default.

@@ -28,6 +28,7 @@ export const SPECS = new Map<string, Kind>([
   ["detached", "switch"],
   ["all", "switch"],
   ["no-commit", "switch"],
+  ["force", "switch"],
   ["overall", "switch"],
   ["current-year", "switch"],
   ["current-month", "switch"],
