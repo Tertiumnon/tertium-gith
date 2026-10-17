@@ -59,7 +59,8 @@ Look at the repo
   gith list --stashes [-l <n>]       stashes, newest first (default 5); --pockets shows them with Gorlum
   gith show ...                      same as gith list
   gith tree [-l <n>]                 working trees: path, branch, HEAD (current marked *)
-  gith find|search -commit <text> [-limit <n>]  commits on this branch whose message has the text (default 5)
+  gith find|search [-commit <text>] [-file <pattern>] [-change <text>] [--regex] [-limit <n>]
+                                     newest commits on this branch matching every filter (default 5)
   gith stat [period] [-limit <n>]    fun facts about this branch: biggest commit, busiest day, streaks
                                      period: --overall (default), --current-year|-month|-week, --last-year|-month|-week
 

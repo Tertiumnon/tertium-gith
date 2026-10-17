@@ -73,6 +73,9 @@ gith list --tags -l 20              # the newest 20
 gith list --stashes                 # the newest 5 stashes (-l for more)
 gith show --pockets                 # the same, with Gorlum: my precious pockets!
 gith find -commit "login" -limit 10  # commits whose message mentions login (search is the same; default 5)
+gith search -file "*api.ts" -limit 3 # commits that changed a matching file, with the files listed
+gith find -change "TODO"           # commits that added or removed the text in their diff
+gith find -file "*api.ts" -commit fix # filters combine: fixes that touched api.ts
 gith tree                           # working trees of this repo: path, branch, HEAD (current marked *)
 gith stat                           # fun facts about this branch: biggest commit, busiest day, streaks...
 gith stat --last-week -limit 50     # the same for last week, looking at no more than 50 commits
@@ -132,7 +135,11 @@ Commands that choose between flags (for example `create -b`, `-r` and `-h`, or `
 - **`undo`** runs `git reset --soft HEAD~1`: the last commit is removed and its changes stay staged. It refuses when HEAD is already on origin, because undoing a pushed commit needs a force-push.
 - **`save`** saves the staged changes. If the branch has commits of its own (commits origin's `develop`, or `main`, lacks), it folds them into the last commit with `git commit --amend --no-edit`, keeping its message. `-m` replaces the message. If the branch has no commits of its own, it never touches the base commit: it creates a new commit, asking for its message (an empty answer is refused, and `-m` skips the question). It refuses with nothing staged. It pushes only when origin already has this branch and its copy differs from the new commit: a plain `git push origin <branch>` when the commit only moves forward, or, when a pushed commit was rewritten, a `Save it and force-push ...? [Y/n]` question (Enter means yes; a no changes nothing) followed by `git push --force-with-lease origin <branch>`, which refuses if origin moved since your last fetch. If origin has no such branch, the save stays local. The questions need a terminal, so a script cannot force-push or commit by accident.
 - **`stash`** saves changes with `git stash push --include-untracked`. `-n` names the stash. It refuses when there is nothing to save.
-- **`find`** (also `search`) lists the newest commits on this branch whose message contains the text given with `-commit`. The match ignores case and treats the text literally, so `(`, `.` and `*` are fine. `-limit` sets how many to show (default 5).
+- **`find`** (also `search`) lists the newest commits on this branch that match every filter given:
+  - `-commit <text>` matches the commit message, ignoring case, and the text is literal.
+  - `-file <pattern>` matches the paths changed by the commit, using git's pattern rules (`*api.ts` matches `src/api.ts`). Each commit lists the matching files it changed.
+  - `-change <text>` matches commits whose diff adds or removes the text (`git log -S`). With `--regex`, it matches a regular expression against the diff (`git log -G`).
+  - `-limit <n>` sets how many to show (default 5). The filters combine with AND.
 - **`show`** is a synonym for `list`: `gith show --tags` and `gith list --tags` do the same. `--pockets` is a fun name for `--stashes`, and it prints a Gorlum figure above the list.
 - **`list --stashes`** shows the stashes, newest first, with their date and description. Like the other listings, it shows 5 by default, and `-limit` changes that.
 - **`squash -limit <n>`** combines the last `n` commits on the current work branch into one, using `reset --soft` and a single commit. Without `-m` the result keeps the oldest of the combined commits, its message and author. It refuses when `n` is below 2, when `n` would reach the first commit, when a merge is among them, when any of them is already on origin, on a container, or with a dirty working tree.
