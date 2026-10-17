@@ -343,6 +343,12 @@ async function removeBranches(
     return { name, local, origin };
   });
   if (plan.length > 0) console.log("Will remove:");
+  for (const { name, local, origin } of plan) {
+    const sides = [local && "local", origin && "origin"]
+      .filter(Boolean)
+      .join(" + ");
+    console.log(`  ${name}  (${sides})`);
+  }
   if (
     ask &&
     plan.length > 0 &&
@@ -354,12 +360,6 @@ async function removeBranches(
   ) {
     console.log("Nothing removed.");
     return;
-  }
-  for (const { name, local, origin } of plan) {
-    const sides = [local && "local", origin && "origin"]
-      .filter(Boolean)
-      .join(" + ");
-    console.log(`  ${name}  (${sides})`);
   }
   for (const { name, local, origin } of plan) {
     if (local) gitArgs(["branch", "-d", "--", name]);

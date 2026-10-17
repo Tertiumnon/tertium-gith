@@ -587,6 +587,9 @@ describe("remove --detached --all (test)", () => {
         const dry = gith(repo, ["remove", "--detached", "--all", "--dry-run"]);
         expect(dry.status).toBe(0);
         expect(dry.stdout).toContain("lonely-one");
+        expect(dry.stdout.indexOf("lonely-one")).toBeLessThan(
+          dry.stdout.indexOf("Remove these"),
+        );
         expect(dry.stdout).toContain("lonely-two");
         expect(dry.stdout).not.toContain("shared");
         expect(dry.stdout).toContain("> git branch -d -- lonely-one");
