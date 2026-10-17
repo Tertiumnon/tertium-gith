@@ -59,21 +59,34 @@ gith help                           # full usage
 gith list --tags --verbose
 ```
 
-The dashes decide how a flag takes its value:
-- `-r <version>`, `-release <version>`, `-h <version>`, `-hotfix <version>`: an explicit version.
-- `--release`, `--hotfix`: no value; the version is worked out from the tags.
-- `-b <name>`, `-branch <name>`: the branch name. `--branch` alone opens the picker in `remove`.
-- `--patch`, `--minor` and `--major`.
+## Flags
 
-The rule is the same for every command: a single dash always takes a value, and a double dash never does. So `-limit 10` and `-l 10` are right, while `--limit 10` and `-remote` are errors with a message pointing to the right spelling. Switches are `--remote`, `--both`, `--obsolete`, `--tags`, `--commits`, `--graph`, `--stashes`, `--patch`, `--minor` and `--major`. `-limit` (or `-l`) works on every listing: `list --tags`, `list --commits`, `list --stashes` and the picker. `-message` (or `-m`) is the squash commit message, and `-name` (or `-n`) is the stash name. `-count` sets how many commits `squash` combines.
+One rule applies to every command: **a single dash always takes a value, and a double dash never does.** So `-limit 10` is right, and `--limit 10` and `-remote` are errors that name the right spelling.
 
-Two flags work with every command, and can go anywhere on the line:
+| Flag | Kind | Used by |
+| --- | --- | --- |
+| `-b <name>`, `-branch <name>` | value | `create`, `switch`, `remove` |
+| `--branch` | alone: open the picker | `remove` |
+| `-r <version>`, `-release <version>` | value | `create`, `merge` |
+| `--release` | alone: version from the latest tag | `create` |
+| `-h <version>`, `-hotfix <version>` | value | `create`, `merge` |
+| `--hotfix` | alone: version from the latest tag | `create` |
+| `-count <n>` | value | `squash` |
+| `-m <msg>`, `-message <msg>` | value | `squash` |
+| `-n <name>`, `-name <name>` | value | `stash` |
+| `-l <n>`, `-limit <n>` | value, positive whole number | every listing: `list`, `tree`, the picker |
+| `--patch`, `--minor`, `--major` | switch | `release` |
+| `--remote`, `--both` | switch | `remove` |
+| `--obsolete` | switch | `remove` |
+| `--tags`, `--commits`, `--graph`, `--stashes` | switch | `list` |
+| `--verbose` | switch | every command |
+| `--dry-run` | switch | every command |
+
+Commands that choose between flags (for example `create -b`, `-r` and `-h`, or `list --tags` and `--commits`) accept only one of them. `-limit` only applies to listings, and `-message` and `-count` only to `squash`.
+
+`--verbose` and `--dry-run` can go anywhere on the line:
 - `--dry-run` prints each git command that would change something, and runs none of them. Read-only checks still run, so a refusal (for example, "HEAD is already on origin") appears in a dry run too. `clean` and `reset` also list the files they would remove or discard.
-- `--verbose` also prints the read-only git calls, such as `rev-parse` and `ls-remote`.
-
-Each command takes one of its flags; giving two is an error.
-
-`--verbose` works with any command and can go anywhere on the line. Action commands always print the git commands they run, such as `> git push -u origin login`. With `--verbose`, the read-only calls are printed too, such as `rev-parse` and `ls-remote`. Commands run git directly, without a shell, so branch names are never parsed by it.
+- `--verbose` also prints the read-only git calls, such as `rev-parse` and `ls-remote`. Action commands always print the git commands they run, such as `> git push -u origin login`. Commands run git directly, without a shell, so branch names are never parsed by it.
 
 ## Git commands
 
