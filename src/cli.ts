@@ -28,6 +28,7 @@ Usage:
   gith remove -b [<branch>] --both     delete locally, then on origin; no name lists pairs
   gith rm                    alias of remove
   gith list --tags           list tags with a local and origin column
+  gith list --commits [-l <n>]  newest commits on this branch (default 5)
   gith sync                  fetch all remotes, tags, and prune stale refs
   gith clean                 remove untracked files and directories (keeps ignored)
   gith reset                 discard uncommitted changes and untracked files (hard reset + clean)
