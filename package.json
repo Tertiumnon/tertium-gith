@@ -15,7 +15,10 @@
     "test": "bun test --no-coverage",
     "lint": "biome check src",
     "lint:fix": "biome check --write src",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "release:patch": "node bin/gith.js release --patch",
+    "release:minor": "node bin/gith.js release --minor",
+    "release:major": "node bin/gith.js release --major"
   },
   "license": "ISC",
   "author": "Vitalii Balabanov",
