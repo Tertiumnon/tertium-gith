@@ -1,4 +1,3 @@
-import { createInterface } from "node:readline/promises";
 import { onlyOne, parseLimit } from "../args/args";
 import type { Flags } from "../args/args.types";
 import { createBranch } from "../flow/flow";
@@ -12,7 +11,7 @@ import {
   hasOnOrigin,
   isDetached,
 } from "../git/git";
-import { confirm } from "../prompt/prompt";
+import { confirm, select } from "../prompt/prompt";
 import { containerName, isContainer } from "../rules/rules";
 import { DEFAULT_DAYS } from "./maintenance.constants";
 import type { Option, Scope, Sides } from "./maintenance.types";
@@ -90,30 +89,6 @@ export function candidates(
       (name) => notContainer(name) && notCurrent(name) && remote.includes(name),
     )
     .map((name) => ({ name, label: `${name}  (local + origin)` }));
-}
-
-// Turns an answer like "1,3-4" into zero-based indexes. Duplicates are dropped.
-export function parseSelection(answer: string, count: number): number[] {
-  const indexes = new Set<number>();
-  for (const part of answer
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean)) {
-    const range = /^(\d+)-(\d+)$/.exec(part);
-    const from = Number(range ? range[1] : part);
-    const to = Number(range ? range[2] : part);
-    if (
-      !Number.isInteger(from) ||
-      !Number.isInteger(to) ||
-      from < 1 ||
-      to > count ||
-      from > to
-    ) {
-      throw new Error(`'${part}' is not a choice from 1 to ${count}.`);
-    }
-    for (let n = from; n <= to; n++) indexes.add(n - 1);
-  }
-  return [...indexes];
 }
 
 // Reads `for-each-ref --format=%(refname)|%(committerdate:unix)` over local and origin branches.
@@ -272,9 +247,11 @@ export async function clean(flags: Flags): Promise<void> {
 // Lists the options (the first `limit`, or all) and reads which ones to remove.
 const REMOVE_ACTION = {
   empty: "No branches to remove.",
-  prompt: "Remove which? Numbers or ranges, e.g. 1,3-4 (empty cancels): ",
+  prompt: "Remove which?",
+  multi: true,
 };
 
+// Lists the options and lets the user pick with the arrow keys. Returns the picked names.
 async function choose(
   options: Option[],
   limit?: number,
@@ -285,23 +262,12 @@ async function choose(
     return [];
   }
   const shown = limit === undefined ? options : options.slice(0, limit);
-  for (const [i, option] of shown.entries()) {
-    console.log(`  ${i + 1}. ${option.label}`);
-  }
   if (shown.length < options.length) {
     console.log(
       `showing ${shown.length} of ${options.length}; -limit <n> shows more`,
     );
   }
-  const rl = createInterface({ input: process.stdin, output: process.stdout });
-  try {
-    const answer = await rl.question(action.prompt);
-    return parseSelection(answer, shown.length).map(
-      (i) => shown[i]?.name ?? "",
-    );
-  } finally {
-    rl.close();
-  }
+  return select(action.prompt, shown, action.multi);
 }
 
 // gith switch: lists local and origin branches, and switches to the one picked.
@@ -334,7 +300,8 @@ async function switchPick(): Promise<void> {
   }
   const picked = await choose(switchOptions(), undefined, {
     empty: "No branches.",
-    prompt: "Switch to which? Enter one number (empty cancels): ",
+    prompt: "Switch to which?",
+    multi: false,
   });
   if (picked.length === 0) return;
   if (picked.length > 1)

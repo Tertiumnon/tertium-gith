@@ -7,7 +7,6 @@ import {
   branchTimes,
   candidates,
   detachedOptions,
-  parseSelection,
   staleOptions,
 } from "./maintenance";
 
@@ -150,17 +149,6 @@ describe("maintenance", () => {
       expect(candidates("pair", local, remote, "other")).toEqual([
         { name: "pair", label: "pair  (local + origin)" },
       ]);
-    });
-
-    test("parseSelection reads numbers and ranges, drops duplicates, rejects bad input", () => {
-      expect(parseSelection("1,3-4", 5)).toEqual([0, 2, 3]);
-      expect(parseSelection("2, 2", 3)).toEqual([1]);
-      expect(parseSelection("", 3)).toEqual([]);
-      expect(() => parseSelection("4", 3)).toThrow(
-        "'4' is not a choice from 1 to 3.",
-      );
-      expect(() => parseSelection("2-1", 3)).toThrow();
-      expect(() => parseSelection("x", 3)).toThrow();
     });
 
     test("without a terminal, the list is not shown and -b needs a name", () => {

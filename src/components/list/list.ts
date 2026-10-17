@@ -57,7 +57,7 @@ function stashes(limit: number, withGorlum: boolean): void {
     .split("\n")
     .filter(Boolean);
   if (rows.length === 0) {
-    console.log("No stashes.");
+    console.log(withGorlum ? "There is nothing in my pockets!" : "No stashes.");
     return;
   }
   const shown = rows.slice(0, limit);
