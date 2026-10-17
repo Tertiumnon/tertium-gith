@@ -1,10 +1,10 @@
 import { createInterface } from "node:readline/promises";
-import { type Flags, onlyOne, parseLimit } from "../args/args";
+import { onlyOne, parseLimit } from "../args/args";
+import type { Flags } from "../args/args.types";
 import { createBranch } from "../flow/flow";
 import {
   assertBranchName,
   assertCleanTree,
-  capture,
   captureArgs,
   gitArgs,
   hasLocal,
@@ -13,25 +13,18 @@ import {
 } from "../git/git";
 import { confirm } from "../prompt/prompt";
 import { isContainer } from "../rules/rules";
-
-// pair: the local branch and its origin copy together (the default). local or remote: one side only.
-type Scope = "pair" | "local" | "remote";
-
-export interface Option {
-  name: string;
-  label: string;
-}
-
-function noFlags(flags: Flags, command: string): void {
-  if (flags.size > 0) throw new Error(`usage: gith ${command}`);
-}
-
-function requireBranch(flags: Flags, command: string): string {
-  const branch = flags.get("branch");
-  if (!branch) throw new Error(`usage: gith ${command} -b <branch>`);
-  assertBranchName(branch);
-  return branch;
-}
+import { DEFAULT_DAYS } from "./maintenance.constants";
+import type { Option, Scope, Sides } from "./maintenance.types";
+import {
+  currentBranch,
+  day,
+  localBranches,
+  noFlags,
+  parsePositive,
+  remoteBranches,
+  requireBranch,
+  sidesLabel,
+} from "./maintenance.utils";
 
 // gith switch -b <branch>: switches to the branch. If it exists neither here nor on origin,
 // it is created first, the same way as gith create -b.
@@ -51,20 +44,6 @@ export function switchBranch(flags: Flags): void {
     createBranch(branch, isDetached() ? "HEAD" : undefined);
   }
   gitArgs(["switch", "--", branch]);
-}
-
-function switchToCommit(ref: string): void {
-  let sha: string;
-  try {
-    sha = captureArgs(["rev-parse", "--verify", "--quiet", `${ref}^{commit}`]);
-  } catch {
-    throw new Error(`'${ref}' is not a commit in this repository.`);
-  }
-  assertCleanTree();
-  gitArgs(["switch", "--detach", sha]);
-  console.log(
-    `HEAD is detached at ${sha.slice(0, 7)}. To keep commits made here, run: gith switch -b <name>.`,
-  );
 }
 
 // Branches that can be offered for removal. Containers are never offered, and the
@@ -118,29 +97,6 @@ export function parseSelection(answer: string, count: number): number[] {
   return [...indexes];
 }
 
-function localBranches(): string[] {
-  return captureArgs([
-    "for-each-ref",
-    "--format=%(refname:short)",
-    "refs/heads",
-  ])
-    .split("\n")
-    .filter(Boolean);
-}
-
-function remoteBranches(): string[] {
-  return captureArgs(["ls-remote", "--heads", "origin"])
-    .split("\n")
-    .filter(Boolean)
-    .map((line) => (line.split("\t")[1] ?? "").replace(/^refs\/heads\//, ""));
-}
-
-// The newest commit time on each side of a branch, in unix seconds.
-export interface Sides {
-  local?: number;
-  origin?: number;
-}
-
 // Reads `for-each-ref --format=%(refname)|%(committerdate:unix)` over local and origin branches.
 export function branchTimes(output: string): Map<string, Sides> {
   const times = new Map<string, Sides>();
@@ -159,16 +115,6 @@ export function branchTimes(output: string): Map<string, Sides> {
     }
   }
   return times;
-}
-
-function sidesLabel(sides: Sides): string {
-  if (sides.local !== undefined && sides.origin !== undefined)
-    return "local + origin";
-  return sides.local !== undefined ? "local" : "origin";
-}
-
-function day(seconds: number): string {
-  return new Date(seconds * 1000).toISOString().slice(0, 10);
 }
 
 // Branches untouched since the cutoff: no commit on any side newer than it. With the local
@@ -208,6 +154,98 @@ export function detachedOptions(
     options.push({ name, label: `${name}  (local only)` });
   }
   return options.sort((x, y) => x.name.localeCompare(y.name));
+}
+
+// gith remove -b <branch> [--local | --remote]: removes the branch here and on origin, or one side.
+// gith remove --branch [--local | --remote]: lists the branches and asks which to remove.
+export async function remove(flags: Flags): Promise<void> {
+  const name = flags.get("branch");
+  const side = onlyOne(flags, ["local", "remote"]);
+  const scope: Scope = side ?? "pair";
+  const obsoleteOn = flags.has("obsolete");
+  const detachedOn = flags.has("detached");
+  if (obsoleteOn && detachedOn)
+    throw new Error("use only one of: --obsolete, --detached.");
+  if (flags.has("days") && !obsoleteOn)
+    throw new Error("-days only applies to --obsolete.");
+  if (obsoleteOn || detachedOn) {
+    const usage = detachedOn
+      ? "usage: gith remove --detached [-l <n>]"
+      : "usage: gith remove --obsolete [--local] [-days <n>] [-l <n>]";
+    if (
+      name !== undefined ||
+      (obsoleteOn && side === "remote") ||
+      (detachedOn && side)
+    )
+      throw new Error(usage);
+    if (detachedOn) return detached(flags);
+    return obsolete(flags, side === "local" ? "local" : "pair");
+  }
+  if (name === undefined)
+    throw new Error(
+      "usage: gith remove -b <branch> [--local | --remote], or gith remove --branch to pick",
+    );
+
+  if (name) {
+    if (flags.has("limit"))
+      throw new Error("-limit only applies to listings: gith remove --branch.");
+    assertBranchName(name);
+    if (isContainer(name))
+      throw new Error(`'${name}' is a container and cannot be removed.`);
+    await removeBranches(scope, [name]);
+    return;
+  }
+  requireTerminal();
+  await removeBranches(scope, await pick(scope, parseLimit(flags)));
+}
+
+// gith sync: fetches every remote with tags, pruning deleted refs.
+export function sync(flags: Flags): void {
+  noFlags(flags, "sync");
+  gitArgs(["fetch", "--all", "--tags", "--prune"]);
+}
+
+// gith reset: discards every uncommitted change on this branch, and removes untracked files and
+// directories (ignored files are kept). Lists what it will discard, and asks first.
+export async function reset(flags: Flags): Promise<void> {
+  noFlags(flags, "reset");
+  const changes = captureArgs(["status", "--short"])
+    .split("\n")
+    .filter(Boolean);
+  const untracked = untrackedPaths();
+  if (changes.length === 0 && untracked.length === 0) {
+    console.log("Nothing to discard.");
+    return;
+  }
+  console.log("Will discard:");
+  for (const line of changes) console.log(`  ${line}`);
+  for (const path of untracked) console.log(`  ?? ${path}`);
+  if (!(await confirm("Discard all of this? It cannot be undone. [Y/n] "))) {
+    console.log("Nothing discarded.");
+    return;
+  }
+  gitArgs(["reset", "--hard"]);
+  if (untracked.length > 0) gitArgs(["clean", "-fd"]);
+}
+
+// gith clean: removes untracked files and directories (ignored files are kept). Lists what it
+// will remove, and asks first.
+export async function clean(flags: Flags): Promise<void> {
+  noFlags(flags, "clean");
+  const untracked = untrackedPaths();
+  if (untracked.length === 0) {
+    console.log("No untracked files to remove.");
+    return;
+  }
+  console.log("Will remove:");
+  for (const path of untracked) console.log(`  ${path}`);
+  if (
+    !(await confirm(`Remove these ${untracked.length} untracked paths? [Y/n] `))
+  ) {
+    console.log("Nothing removed.");
+    return;
+  }
+  gitArgs(["clean", "-fd"]);
 }
 
 // Lists the options (the first `limit`, or all) and reads which ones to remove.
@@ -256,10 +294,6 @@ function pick(scope: Scope, limit?: number): Promise<string[]> {
   );
 }
 
-function currentBranch(): string {
-  return capture("rev-parse --abbrev-ref HEAD");
-}
-
 // Deletes the local branch (git branch -d refuses unmerged ones) and the origin branch.
 // A pair removes whichever sides exist, so a branch that only lives here is still removed.
 // Every removal prints what it will remove before running anything.
@@ -301,17 +335,6 @@ async function removeBranches(
     if (local) gitArgs(["branch", "-d", "--", name]);
     if (origin) gitArgs(["push", "origin", "--delete", name]);
   }
-}
-
-const DEFAULT_DAYS = 90;
-
-// A positive whole number from a value flag, or undefined when it is not given.
-function parsePositive(flags: Flags, name: string): number | undefined {
-  const raw = flags.get(name);
-  if (raw === undefined) return undefined;
-  if (!/^[1-9]\d*$/.test(raw))
-    throw new Error(`-${name} needs a positive whole number.`);
-  return Number(raw);
 }
 
 function readTimes(): Map<string, Sides> {
@@ -370,53 +393,18 @@ async function detached(flags: Flags): Promise<void> {
   await removeBranches("local", await choose(options, parseLimit(flags)));
 }
 
-// gith remove -b <branch> [--local | --remote]: removes the branch here and on origin, or one side.
-// gith remove --branch [--local | --remote]: lists the branches and asks which to remove.
-export async function remove(flags: Flags): Promise<void> {
-  const name = flags.get("branch");
-  const side = onlyOne(flags, ["local", "remote"]);
-  const scope: Scope = side ?? "pair";
-  const obsoleteOn = flags.has("obsolete");
-  const detachedOn = flags.has("detached");
-  if (obsoleteOn && detachedOn)
-    throw new Error("use only one of: --obsolete, --detached.");
-  if (flags.has("days") && !obsoleteOn)
-    throw new Error("-days only applies to --obsolete.");
-  if (obsoleteOn || detachedOn) {
-    const usage = detachedOn
-      ? "usage: gith remove --detached [-l <n>]"
-      : "usage: gith remove --obsolete [--local] [-days <n>] [-l <n>]";
-    if (
-      name !== undefined ||
-      (obsoleteOn && side === "remote") ||
-      (detachedOn && side)
-    )
-      throw new Error(usage);
-    if (detachedOn) return detached(flags);
-    return obsolete(flags, side === "local" ? "local" : "pair");
+function switchToCommit(ref: string): void {
+  let sha: string;
+  try {
+    sha = captureArgs(["rev-parse", "--verify", "--quiet", `${ref}^{commit}`]);
+  } catch {
+    throw new Error(`'${ref}' is not a commit in this repository.`);
   }
-  if (name === undefined)
-    throw new Error(
-      "usage: gith remove -b <branch> [--local | --remote], or gith remove --branch to pick",
-    );
-
-  if (name) {
-    if (flags.has("limit"))
-      throw new Error("-limit only applies to listings: gith remove --branch.");
-    assertBranchName(name);
-    if (isContainer(name))
-      throw new Error(`'${name}' is a container and cannot be removed.`);
-    await removeBranches(scope, [name]);
-    return;
-  }
-  requireTerminal();
-  await removeBranches(scope, await pick(scope, parseLimit(flags)));
-}
-
-// gith sync: fetches every remote with tags, pruning deleted refs.
-export function sync(flags: Flags): void {
-  noFlags(flags, "sync");
-  gitArgs(["fetch", "--all", "--tags", "--prune"]);
+  assertCleanTree();
+  gitArgs(["switch", "--detach", sha]);
+  console.log(
+    `HEAD is detached at ${sha.slice(0, 7)}. To keep commits made here, run: gith switch -b <name>.`,
+  );
 }
 
 // Untracked paths that clean would remove, as git reports them.
@@ -425,47 +413,4 @@ function untrackedPaths(): string[] {
     .split("\n")
     .filter(Boolean)
     .map((line) => line.replace(/^Would remove /, ""));
-}
-
-// gith reset: discards every uncommitted change on this branch, and removes untracked files and
-// directories (ignored files are kept). Lists what it will discard, and asks first.
-export async function reset(flags: Flags): Promise<void> {
-  noFlags(flags, "reset");
-  const changes = captureArgs(["status", "--short"])
-    .split("\n")
-    .filter(Boolean);
-  const untracked = untrackedPaths();
-  if (changes.length === 0 && untracked.length === 0) {
-    console.log("Nothing to discard.");
-    return;
-  }
-  console.log("Will discard:");
-  for (const line of changes) console.log(`  ${line}`);
-  for (const path of untracked) console.log(`  ?? ${path}`);
-  if (!(await confirm("Discard all of this? It cannot be undone. [Y/n] "))) {
-    console.log("Nothing discarded.");
-    return;
-  }
-  gitArgs(["reset", "--hard"]);
-  if (untracked.length > 0) gitArgs(["clean", "-fd"]);
-}
-
-// gith clean: removes untracked files and directories (ignored files are kept). Lists what it
-// will remove, and asks first.
-export async function clean(flags: Flags): Promise<void> {
-  noFlags(flags, "clean");
-  const untracked = untrackedPaths();
-  if (untracked.length === 0) {
-    console.log("No untracked files to remove.");
-    return;
-  }
-  console.log("Will remove:");
-  for (const path of untracked) console.log(`  ${path}`);
-  if (
-    !(await confirm(`Remove these ${untracked.length} untracked paths? [Y/n] `))
-  ) {
-    console.log("Nothing removed.");
-    return;
-  }
-  gitArgs(["clean", "-fd"]);
 }

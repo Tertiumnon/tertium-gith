@@ -1,10 +1,5 @@
-// Version math for `gith create -r` and `gith create -h` without an explicit version.
-// Pure, so it can be tested without a repository.
-
-export type Bump = "minor" | "patch";
-export type Semver = [number, number, number];
-
-const SEMVER = /^v?(\d+)\.(\d+)\.(\d+)$/;
+import { SEMVER } from "./versions.constants";
+import type { Bump, Semver } from "./versions.types";
 
 // Accepts `1.2.3` and `v1.2.3`; anything else (e.g. `latest`, `release/1.0`) is not a version.
 export function parseSemver(tag: string): Semver | undefined {

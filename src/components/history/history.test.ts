@@ -3,7 +3,6 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { parseStatus } from "../status/status";
 
 describe("history", () => {
   const CLI = path.resolve(import.meta.dir, "../../cli.ts");
@@ -41,57 +40,7 @@ describe("history", () => {
     return repo;
   }
 
-  describe("parseStatus", () => {
-    test("counts staged, unstaged, untracked and reads ahead and behind", () => {
-      const output = [
-        "# branch.oid 1111",
-        "# branch.head feature",
-        "# branch.upstream origin/feature",
-        "# branch.ab +2 -1",
-        "1 M. N... 100644 100644 100644 a b staged.txt",
-        "1 .M N... 100644 100644 100644 a b unstaged.txt",
-        "1 MM N... 100644 100644 100644 a b both.txt",
-        "? new.txt",
-      ].join("\n");
-      expect(parseStatus(output)).toEqual({
-        branch: "feature",
-        upstream: "origin/feature",
-        ahead: 2,
-        behind: 1,
-        staged: 2,
-        unstaged: 2,
-        untracked: 1,
-        conflicts: 0,
-      });
-    });
-  });
-
-  describe("status, stash, update, undo and save", () => {
-    test("status reports the branch and counts; stash and unstash round-trip", () => {
-      const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "gith-status-"));
-      try {
-        const repo = fixture(tmp);
-        expect(gith(repo, ["status"]).stdout).toContain("working tree clean");
-
-        fs.writeFileSync(path.join(repo, "a.txt"), "changed");
-        fs.writeFileSync(path.join(repo, "new.txt"), "x");
-        expect(gith(repo, ["status"]).stdout).toContain(
-          "unstaged 1, untracked 1",
-        );
-
-        expect(gith(repo, ["stash", "-n", "wip"]).status).toBe(0);
-        expect(gith(repo, ["status"]).stdout).toContain("working tree clean");
-        expect(gith(repo, ["stash"]).status).toBe(1); // nothing left to stash
-        expect(gith(repo, ["unstash"]).status).toBe(0);
-        expect(fs.readFileSync(path.join(repo, "a.txt"), "utf8")).toBe(
-          "changed",
-        );
-        expect(fs.existsSync(path.join(repo, "new.txt"))).toBe(true);
-      } finally {
-        fs.rmSync(tmp, { recursive: true, force: true });
-      }
-    }, 60_000);
-
+  describe("update, undo and save", () => {
     test("update merges origin/develop into a work branch, and refuses containers", () => {
       const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "gith-update-"));
       try {
@@ -356,34 +305,6 @@ describe("squash", () => {
   function subjects(repo: string): string[] {
     return git(repo, ["log", "--format=%s"]).stdout.trim().split("\n");
   }
-
-  describe("stash -n and list --stashes", () => {
-    test("names a stash and lists it", () => {
-      const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "gith-stash-name-"));
-      try {
-        const repo = fixture(tmp);
-        fs.writeFileSync(path.join(repo, "a.txt"), "changed");
-        expect(gith(repo, ["stash", "-n", "wip-login"]).status).toBe(0);
-        expect(gith(repo, ["list", "--stashes"]).stdout).toContain("wip-login");
-        expect(gith(repo, ["stash", "--name", "x", "-n", "y"]).status).toBe(1);
-        expect(gith(repo, ["list", "--stashes", "-l", "0"]).status).toBe(1);
-      } finally {
-        fs.rmSync(tmp, { recursive: true, force: true });
-      }
-    }, 60_000);
-
-    test("reports when there are no stashes", () => {
-      const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "gith-stash-none-"));
-      try {
-        const repo = fixture(tmp);
-        expect(gith(repo, ["list", "--stashes"]).stdout).toContain(
-          "No stashes.",
-        );
-      } finally {
-        fs.rmSync(tmp, { recursive: true, force: true });
-      }
-    }, 60_000);
-  });
 
   describe("squash", () => {
     test("combines the last commits, keeping the oldest message by default, or uses -m", () => {

@@ -1,14 +1,8 @@
-import { type Flags, parseLimit } from "../args/args";
+import { parseLimit } from "../args/args";
+import type { Flags } from "../args/args.types";
 import { captureArgs } from "../git/git";
-
-export interface Worktree {
-  path: string;
-  head: string;
-  branch?: string;
-  bare: boolean;
-  locked: boolean;
-  prunable: boolean;
-}
+import type { Worktree } from "./tree.types";
+import { flagsOf } from "./tree.utils";
 
 // Parses `git worktree list --porcelain`: one blank-line-separated block per worktree.
 export function parseWorktrees(output: string): Worktree[] {
@@ -37,16 +31,6 @@ export function parseWorktrees(output: string): Worktree[] {
       }
       return worktree;
     });
-}
-
-function flagsOf(worktree: Worktree): string {
-  return [
-    worktree.bare ? "bare" : "",
-    worktree.locked ? "locked" : "",
-    worktree.prunable ? "prunable" : "",
-  ]
-    .filter(Boolean)
-    .join(", ");
 }
 
 // gith tree: every working tree of this repository, with its branch and HEAD. The current one is marked *.

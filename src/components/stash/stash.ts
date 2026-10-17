@@ -1,4 +1,4 @@
-import type { Flags } from "../args/args";
+import type { Flags } from "../args/args.types";
 import { captureArgs, gitArgs } from "../git/git";
 
 // gith stash [-n <name>]: saves uncommitted changes, including untracked files.

@@ -1,16 +1,6 @@
-import type { Flags } from "../args/args";
+import type { Flags } from "../args/args.types";
 import { captureArgs } from "../git/git";
-
-export interface Status {
-  branch: string;
-  upstream?: string;
-  ahead: number;
-  behind: number;
-  staged: number;
-  unstaged: number;
-  untracked: number;
-  conflicts: number;
-}
+import type { Status } from "./status.types";
 
 // Reads `git status --porcelain=v2 --branch`. Each changed entry starts with "1" or "2" and
 // has an XY code: X is the index (staged) column, Y the working-tree (unstaged) column.

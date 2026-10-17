@@ -1,11 +1,5 @@
-// Pure branch rules, no git calls, so they can be tested without a repository.
-
-// Containers collect work and are never worked on directly.
-const CONTAINER = /^(develop|main|release\/.+|hotfix\/.+)$/;
-// Branches a merge can land in.
-const TARGET = /^(develop|release\/.+|hotfix\/.+)$/;
-
-export type ContainerKind = "release" | "hotfix";
+import { CONTAINER, TARGET } from "./rules.constants";
+import type { ContainerKind } from "./rules.types";
 
 export function isContainer(name: string): boolean {
   return CONTAINER.test(name);

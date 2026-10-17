@@ -1,8 +1,8 @@
-import { type Flags, parseLimit } from "../args/args";
+import { parseLimit } from "../args/args";
+import type { Flags } from "../args/args.types";
 import { captureArgs } from "../git/git";
-
-const DEFAULT_LIMIT = 5;
-const FILTERS = ["commit", "file", "change"];
+import { DEFAULT_LIMIT, FILTERS } from "./find.constants";
+import { describe } from "./find.utils";
 
 // gith find|search [-commit <text>] [-file <pattern>] [-change <text>] [--regex] [-limit <n>]:
 // the newest commits on this branch that match every filter given. -commit matches the message,
@@ -67,18 +67,4 @@ export function find(flags: Flags): void {
       })
       .join("\n"),
   );
-}
-
-function describe(
-  message?: string,
-  file?: string,
-  change?: string,
-  regex = false,
-): string {
-  const parts: string[] = [];
-  if (message !== undefined) parts.push(`message "${message}"`);
-  if (file !== undefined) parts.push(`file "${file}"`);
-  if (change !== undefined)
-    parts.push(`${regex ? "regex" : "change"} "${change}"`);
-  return parts.join(" and ");
 }

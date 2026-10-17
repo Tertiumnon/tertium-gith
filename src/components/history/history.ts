@@ -1,34 +1,15 @@
-import { type Flags, parseLimit } from "../args/args";
-import {
-  assertCleanTree,
-  capture,
-  captureArgs,
-  gitArgs,
-  isDryRun,
-} from "../git/git";
-import { ask, confirm } from "../prompt/prompt";
+import { parseLimit } from "../args/args";
+import type { Flags } from "../args/args.types";
+import { assertCleanTree, captureArgs, gitArgs, isDryRun } from "../git/git";
+import { confirm } from "../prompt/prompt";
 import { isContainer } from "../rules/rules";
-
-function noFlags(flags: Flags, command: string): void {
-  if (flags.size > 0) throw new Error(`usage: gith ${command}`);
-}
-
-// The checked-out branch name. Refuses detached HEAD.
-function currentBranch(): string {
-  const name = capture("rev-parse --abbrev-ref HEAD");
-  if (name === "HEAD")
-    throw new Error("HEAD is detached; check out a branch first.");
-  return name;
-}
-
-// Undoing a commit that origin already has would need a force-push.
-function assertNotPushed(): void {
-  if (captureArgs(["branch", "-r", "--contains", "HEAD"]) !== "") {
-    throw new Error(
-      "HEAD is already on origin; changing it would need a force-push.",
-    );
-  }
-}
+import {
+  askMessage,
+  assertNotPushed,
+  currentBranch,
+  noFlags,
+  remoteSha,
+} from "./history.utils";
 
 // gith update: merges origin/develop into this work branch, so it has the latest develop.
 export function update(flags: Flags): void {
@@ -58,26 +39,6 @@ export function undo(flags: Flags): void {
   assertCleanTree();
   assertNotPushed();
   gitArgs(["reset", "--soft", "HEAD~1"]);
-}
-
-// True when this branch has commits of its own: commits that origin's develop (or main) lacks.
-// Without one, HEAD belongs to the base branch, so save must not rewrite it.
-function hasOwnCommit(): boolean {
-  for (const base of ["origin/develop", "origin/main"]) {
-    try {
-      return captureArgs(["rev-list", "--count", `${base}..HEAD`]) !== "0";
-    } catch {
-      // This base does not exist here; try the next one.
-    }
-  }
-  return true;
-}
-
-// The commit origin has for this branch, or "" when origin has no such branch.
-function remoteSha(branch: string): string {
-  return (
-    captureArgs(["ls-remote", "--heads", "origin", branch]).split("\t")[0] ?? ""
-  );
 }
 
 // gith save: with commits of its own, folds the staged changes into the last commit and keeps its
@@ -135,14 +96,6 @@ export async function save(flags: Flags): Promise<void> {
   else gitArgs(["push", "origin", branch]);
 }
 
-// Asks for a commit message. An empty answer is refused, so a commit never has no message.
-async function askMessage(): Promise<string> {
-  const text = await ask("Commit message: ");
-  if (text === "")
-    throw new Error("a commit needs a message; nothing was committed.");
-  return text;
-}
-
 // gith squash -limit <n> [-m <message>]: combines the last n commits into one. Without -m the
 // result keeps the oldest of them: its message and author.
 export async function squash(flags: Flags): Promise<void> {
@@ -193,4 +146,17 @@ export async function squash(flags: Flags): Promise<void> {
   gitArgs(["reset", "--soft", `HEAD~${count}`]);
   if (message) gitArgs(["commit", "-m", message]);
   else gitArgs(["commit", "-C", oldest]);
+}
+
+// True when this branch has commits of its own: commits that origin's develop (or main) lacks.
+// Without one, HEAD belongs to the base branch, so save must not rewrite it.
+function hasOwnCommit(): boolean {
+  for (const base of ["origin/develop", "origin/main"]) {
+    try {
+      return captureArgs(["rev-list", "--count", `${base}..HEAD`]) !== "0";
+    } catch {
+      // This base does not exist here; try the next one.
+    }
+  }
+  return true;
 }

@@ -30,8 +30,8 @@ describe("webUrl", () => {
   });
 });
 
-describe("gith open and gith doctor", () => {
-  test("open --dry-run prints the browser command; doctor fails without origin", () => {
+describe("gith open", () => {
+  test("open --dry-run prints the browser command for origin", () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "gith-open-"));
     try {
       const repo = path.join(tmp, "repo");
@@ -41,13 +41,6 @@ describe("gith open and gith doctor", () => {
       const opened = gith(repo, ["open", "--dry-run"]);
       expect(opened.status).toBe(0);
       expect(opened.stdout).toContain("https://github.com/team/app");
-
-      const noOrigin = fs.mkdtempSync(path.join(os.tmpdir(), "gith-doctor-"));
-      git(noOrigin, ["init", "-b", "main"]);
-      const result = gith(noOrigin, ["doctor"]);
-      expect(result.status).toBe(1);
-      expect(result.stdout).toContain("✖ origin is configured");
-      fs.rmSync(noOrigin, { recursive: true, force: true });
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });
     }

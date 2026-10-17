@@ -1,14 +1,10 @@
-import { type Flags, onlyOne, parseLimit } from "../args/args";
+import { onlyOne, parseLimit } from "../args/args";
+import type { Flags } from "../args/args.types";
 import { captureArgs } from "../git/git";
 import { compare, parseSemver } from "../versions/versions";
-
-const DEFAULT_LIMIT = 5;
-
-export interface TagPair {
-  name: string;
-  local: boolean;
-  origin: boolean;
-}
+import { DEFAULT_LIMIT, GORLUM } from "./list.constants";
+import type { TagPair } from "./list.types";
+import { commits, yesNo } from "./list.utils";
 
 // Pairs local and origin tags by name. Version tags come newest first; other names follow, A to Z.
 export function tagPairs(local: string[], origin: string[]): TagPair[] {
@@ -29,23 +25,6 @@ export function tagPairs(local: string[], origin: string[]): TagPair[] {
     });
 }
 
-// Origin tag names from `ls-remote --tags`, which also lists peeled `name^{}` lines.
-function originTags(): string[] {
-  return captureArgs(["ls-remote", "--tags", "origin"])
-    .split("\n")
-    .filter(Boolean)
-    .map((line) => (line.split("\t")[1] ?? "").replace(/^refs\/tags\//, ""))
-    .filter((ref) => ref && !ref.endsWith("^{}"));
-}
-
-function localTags(): string[] {
-  return captureArgs(["tag", "--list"]).split("\n").filter(Boolean);
-}
-
-function yesNo(value: boolean): string {
-  return value ? "yes" : "no";
-}
-
 // gith list --tags | --commits, showing the first -limit rows (default 5).
 export function list(flags: Flags): void {
   const kind = onlyOne(flags, ["tags", "commits", "stashes", "pockets"]);
@@ -62,14 +41,9 @@ export function list(flags: Flags): void {
   else tags(limit);
 }
 
-// Gorlum guards his pockets. --pockets shows the stashes with him.
-const GORLUM = [
-  '      .-"""-.',
-  "     /  o o  \\",
-  "    |   ___   |   my precious pockets!",
-  "     \\ (___) /",
-  "      '-._.-'",
-];
+function localTags(): string[] {
+  return captureArgs(["tag", "--list"]).split("\n").filter(Boolean);
+}
 
 // Newest first. Each row is the stash selector, its date, and git's description of it.
 function stashes(limit: number, withGorlum: boolean): void {
@@ -92,28 +66,6 @@ function stashes(limit: number, withGorlum: boolean): void {
     console.log(
       `showing ${shown.length} of ${rows.length}; -limit <n> shows more`,
     );
-  }
-}
-
-// Newest first, from the current branch.
-function commits(limit: number, graph: boolean): void {
-  if (!hasHead()) {
-    console.log("No commits.");
-    return;
-  }
-  const shape = graph
-    ? ["--graph", "--oneline", "--decorate"]
-    : ["--date=short", "--format=%h  %ad  %an  %s"];
-  console.log(captureArgs(["log", `-n${limit}`, ...shape]));
-}
-
-// False on a repository with no commits yet, where HEAD does not resolve.
-function hasHead(): boolean {
-  try {
-    captureArgs(["rev-parse", "--verify", "--quiet", "HEAD"]);
-    return true;
-  } catch {
-    return false;
   }
 }
 
@@ -140,4 +92,13 @@ function tags(limit: number): void {
       `showing ${shown.length} of ${pairs.length}; -limit <n> shows more`,
     );
   }
+}
+
+// Origin tag names from `ls-remote --tags`, which also lists peeled `name^{}` lines.
+function originTags(): string[] {
+  return captureArgs(["ls-remote", "--tags", "origin"])
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => (line.split("\t")[1] ?? "").replace(/^refs\/tags\//, ""))
+    .filter((ref) => ref && !ref.endsWith("^{}"));
 }

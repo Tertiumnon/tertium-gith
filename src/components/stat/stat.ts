@@ -1,28 +1,9 @@
-import { type Flags, onlyOne, parseLimit } from "../args/args";
+import { onlyOne, parseLimit } from "../args/args";
+import type { Flags } from "../args/args.types";
 import { captureArgs } from "../git/git";
-
-export const PERIODS = [
-  "overall",
-  "current-year",
-  "current-month",
-  "current-week",
-  "last-year",
-  "last-month",
-  "last-week",
-] as const;
-export type Period = (typeof PERIODS)[number];
-
-export interface Range {
-  label: string;
-  since?: string;
-  until?: string;
-}
-
-// Weeks start on Monday. Dates are local time.
-function startOfWeek(date: Date): Date {
-  const offset = (date.getDay() + 6) % 7;
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate() - offset);
-}
+import { DAYS, PERIODS } from "./stat.constants";
+import type { Commit, Period, Range, Row } from "./stat.types";
+import { count, dayKey, startOfWeek, top } from "./stat.utils";
 
 // The commit range for a period, as git --since and --until dates.
 export function periodRange(period: Period, now: Date): Range {
@@ -62,16 +43,6 @@ export function periodRange(period: Period, now: Date): Range {
   }
 }
 
-export interface Commit {
-  hash: string;
-  author: string;
-  date: Date;
-  subject: string;
-  added: number;
-  deleted: number;
-  files: string[];
-}
-
 // Reads `git log --numstat` in the format used by stat. Each record starts with \x1e, then a
 // header of hash, author, ISO date and subject separated by \x1f, then one line per file.
 export function parseLog(output: string): Commit[] {
@@ -103,44 +74,6 @@ export function parseLog(output: string): Commit[] {
         files,
       };
     });
-}
-
-export interface Row {
-  stat: string;
-  value: string;
-  detail: string;
-}
-
-const DAYS = [
-  "Sunday",
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-];
-
-function dayKey(date: Date): string {
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${date.getFullYear()}-${month}-${day}`;
-}
-
-// The most frequent key, ties broken by the key's name so the result is stable.
-function top(counts: Map<string, number>): [string, number] | undefined {
-  let best: [string, number] | undefined;
-  for (const [key, count] of counts) {
-    if (!best || count > best[1] || (count === best[1] && key < best[0]))
-      best = [key, count];
-  }
-  return best;
-}
-
-function count(keys: string[]): Map<string, number> {
-  const counts = new Map<string, number>();
-  for (const key of keys) counts.set(key, (counts.get(key) ?? 0) + 1);
-  return counts;
 }
 
 // The longest run of consecutive calendar days with at least one commit.

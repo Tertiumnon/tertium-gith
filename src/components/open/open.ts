@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import type { Flags } from "../args/args";
+import type { Flags } from "../args/args.types";
 import { captureArgs, isDryRun } from "../git/git";
 
 // Turns an origin URL into a web address: git@host:owner/repo.git, ssh://git@host/owner/repo
@@ -15,13 +15,6 @@ export function webUrl(remote: string): string {
   return url;
 }
 
-// The command that opens a URL in the default browser on this platform.
-function openerFor(platform: NodeJS.Platform, url: string): [string, string[]] {
-  if (platform === "win32") return ["explorer.exe", [url]];
-  if (platform === "darwin") return ["open", [url]];
-  return ["xdg-open", [url]];
-}
-
 // gith open: opens this repository's origin in the browser.
 export function open(flags: Flags): void {
   if (flags.size > 0) throw new Error("usage: gith open");
@@ -30,4 +23,11 @@ export function open(flags: Flags): void {
   console.log(`> ${command} ${args.join(" ")}`);
   if (isDryRun()) return;
   spawn(command, args, { detached: true, stdio: "ignore" }).unref();
+}
+
+// The command that opens a URL in the default browser on this platform.
+function openerFor(platform: NodeJS.Platform, url: string): [string, string[]] {
+  if (platform === "win32") return ["explorer.exe", [url]];
+  if (platform === "darwin") return ["open", [url]];
+  return ["xdg-open", [url]];
 }

@@ -18,25 +18,6 @@ export function isDryRun(): boolean {
   return dryRun;
 }
 
-// Shows a git command the way it would be typed, quoting arguments that contain spaces.
-function show(args: string[]): string {
-  const shown = args.map((arg) => (/\s/.test(arg) ? `"${arg}"` : arg));
-  return `> git ${shown.join(" ")}`;
-}
-
-// Runs git and returns its trimmed output. Silent unless --verbose.
-function run(args: string[]): string {
-  if (verbose) console.log(show(args));
-  return execFileSync("git", args, { encoding: "utf-8" }).trim();
-}
-
-// Action commands are always printed, so the user sees what changed.
-function act(args: string[], options: { cwd?: string } = {}): void {
-  console.log(show(args));
-  if (dryRun) return;
-  execFileSync("git", args, { stdio: "inherit", ...options });
-}
-
 // A command line such as "fetch origin" with spaces between arguments. Branch names cannot
 // contain spaces, so splitting is safe, and nothing goes through the shell.
 export function git(args: string): void {
@@ -134,4 +115,23 @@ export function assertSynced(branches: string[]): void {
       throw new Error(`'${branch}' is not in sync with origin/${branch}.`);
     }
   }
+}
+
+// Shows a git command the way it would be typed, quoting arguments that contain spaces.
+function show(args: string[]): string {
+  const shown = args.map((arg) => (/\s/.test(arg) ? `"${arg}"` : arg));
+  return `> git ${shown.join(" ")}`;
+}
+
+// Runs git and returns its trimmed output. Silent unless --verbose.
+function run(args: string[]): string {
+  if (verbose) console.log(show(args));
+  return execFileSync("git", args, { encoding: "utf-8" }).trim();
+}
+
+// Action commands are always printed, so the user sees what changed.
+function act(args: string[], options: { cwd?: string } = {}): void {
+  console.log(show(args));
+  if (dryRun) return;
+  execFileSync("git", args, { stdio: "inherit", ...options });
 }
