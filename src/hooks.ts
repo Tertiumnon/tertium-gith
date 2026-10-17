@@ -7,7 +7,7 @@ import {
 } from "node:fs";
 import path from "node:path";
 import type { Flags } from "./args";
-import { gitArgs } from "./git";
+import { gitArgs, isDryRun } from "./git";
 
 const HOOKS_DIR = ".githooks";
 const HOOKS_PATH_COMMAND = `git config core.hooksPath ${HOOKS_DIR}`;
@@ -109,23 +109,33 @@ export function setupGitHooks(
   const manager = detectPackageManager(projectPath);
   const isTypeScript = isTypeScriptProject(projectPath, pkg);
 
-  mkdirSync(path.dirname(hookPath), { recursive: true });
-  writeFileSync(hookPath, buildPreCommitHook(pkg, manager, isTypeScript));
-  try {
-    chmodSync(hookPath, 0o755);
-  } catch {
-    // Windows has no POSIX mode bits; Git for Windows still runs the hook through its shebang.
+  if (isDryRun()) {
+    console.log(`dry run: would write ${hookPath}`);
+  } else {
+    mkdirSync(path.dirname(hookPath), { recursive: true });
+    writeFileSync(hookPath, buildPreCommitHook(pkg, manager, isTypeScript));
+    try {
+      chmodSync(hookPath, 0o755);
+    } catch {
+      // Windows has no POSIX mode bits; Git for Windows still runs the hook through its shebang.
+    }
   }
 
   gitArgs(["config", "core.hooksPath", HOOKS_DIR], { cwd: projectPath });
 
   if (pkg.scripts?.prepare !== HOOKS_PATH_COMMAND) {
     pkg.scripts = { ...pkg.scripts, prepare: HOOKS_PATH_COMMAND };
-    writeFileSync(
-      path.join(projectPath, "package.json"),
-      `${JSON.stringify(pkg, null, 2)}\n`,
-    );
-    console.log(`✏️  Added "prepare" → "${HOOKS_PATH_COMMAND}" to package.json`);
+    if (isDryRun()) {
+      console.log('dry run: would add "prepare" to package.json');
+    } else {
+      writeFileSync(
+        path.join(projectPath, "package.json"),
+        `${JSON.stringify(pkg, null, 2)}\n`,
+      );
+      console.log(
+        `✏️  Added "prepare" → "${HOOKS_PATH_COMMAND}" to package.json`,
+      );
+    }
   }
 
   console.log(

@@ -8,6 +8,7 @@ import {
   gitArgs,
   hasLocal,
   hasOnOrigin,
+  isDryRun,
 } from "./git";
 import { isContainer } from "./rules";
 
@@ -186,12 +187,20 @@ export function sync(flags: Flags): void {
 // and directories. Ignored files are kept. Nothing here can be undone.
 export function reset(flags: Flags): void {
   noFlags(flags, "reset");
+  if (isDryRun()) {
+    console.log(captureArgs(["status", "--short"]) || "No changes to discard.");
+  }
   gitArgs(["reset", "--hard"]);
-  gitArgs(["clean", "-fd"]);
+  clean(flags);
 }
 
 // gith clean: removes untracked files and directories. Ignored files are kept.
 export function clean(flags: Flags): void {
   noFlags(flags, "clean");
+  if (isDryRun()) {
+    console.log(
+      captureArgs(["clean", "-nd"]) || "No untracked files to remove.",
+    );
+  }
   gitArgs(["clean", "-fd"]);
 }

@@ -1,5 +1,5 @@
 import { execSync } from "node:child_process";
-import { assertClean, assertSynced, capture, git } from "./git";
+import { assertClean, assertSynced, capture, git, isDryRun } from "./git";
 
 export type ReleaseKind = "patch" | "minor" | "major";
 const KINDS: string[] = ["patch", "minor", "major"];
@@ -18,6 +18,7 @@ export function release(kind: string | undefined): void {
 
 function npmVersion(kind: ReleaseKind): void {
   console.log(`> npm version ${kind}`);
+  if (isDryRun()) return;
   execSync(`npm version ${kind}`, { stdio: "inherit" });
 }
 

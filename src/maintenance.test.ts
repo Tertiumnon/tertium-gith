@@ -172,3 +172,45 @@ describe("gith remove picker", () => {
     }
   });
 });
+
+describe("--dry-run", () => {
+  test("prints the git commands for a branch and does not run them", () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "gith-dry-"));
+    try {
+      const repo = path.join(tmp, "repo");
+      fs.mkdirSync(repo);
+      git(tmp, ["init", "--bare", path.join(tmp, "remote.git")]);
+      git(repo, ["init", "-b", "main"]);
+      git(repo, ["config", "user.email", "test@example.com"]);
+      git(repo, ["config", "user.name", "Test"]);
+      fs.writeFileSync(path.join(repo, "a.txt"), "a");
+      git(repo, ["add", "."]);
+      git(repo, ["commit", "-m", "initial"]);
+      git(repo, ["remote", "add", "origin", "../remote.git"]);
+      git(repo, ["push", "-u", "origin", "main"]);
+      git(repo, ["branch", "develop"]);
+      git(repo, ["push", "-u", "origin", "develop"]);
+
+      const result = gith(repo, ["create", "-b", "login", "--dry-run"]);
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain("dry run: nothing below is changed.");
+      expect(result.stdout).toContain("> git branch login origin/develop");
+      expect(result.stdout).toContain("> git push -u origin login");
+      expect(branchExists(repo, "login")).toBe(false);
+      expect(onOrigin(repo, "login")).toBe(false);
+
+      fs.writeFileSync(path.join(repo, "untracked.txt"), "x");
+      const clean = gith(repo, ["clean", "--dry-run"]);
+      expect(clean.stdout).toContain("Would remove untracked.txt");
+      expect(fs.existsSync(path.join(repo, "untracked.txt"))).toBe(true);
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  }, 60_000);
+});
+
+function onOrigin(cwd: string, name: string): boolean {
+  return (
+    git(cwd, ["ls-remote", "--heads", "origin", name]).stdout.trim() !== ""
+  );
+}

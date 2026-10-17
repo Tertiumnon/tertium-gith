@@ -2,7 +2,7 @@
 import { exit } from "node:process";
 import { onlyOne, parseFlags } from "./args";
 import { create, merge } from "./commands";
-import { setVerbose } from "./git";
+import { isDryRun, setDryRun, setVerbose } from "./git";
 import { setup } from "./hooks";
 import { list } from "./list";
 import { clean, remove, reset, switchBranch, sync } from "./maintenance";
@@ -39,6 +39,7 @@ Usage:
   gith setup --hooks [--force]  write .githooks/pre-commit and set core.hooksPath
   gith help                  show this help
   --verbose (any command)    also print read-only git calls, such as rev-parse and ls-remote
+  --dry-run (any command)    print the git commands that would run, without running them
 
 Dashes decide how a flag takes its value:
   -r <v>, -release <v>, -h <v>, -hotfix <v>   explicit version
@@ -47,13 +48,15 @@ Dashes decide how a flag takes its value:
   --patch | -patch, --minor | -minor, --major | -major
   --hooks, --force, --remote, --both                  switches; one dash works too (-hooks)`;
 
-// --verbose is global: it is removed here, so no command has to parse it.
+// --verbose and --dry-run are global: they are removed here, so no command has to parse them.
 const args = process.argv.slice(2).filter((arg) => {
-  if (arg !== "--verbose" && arg !== "-verbose") return true;
-  setVerbose(true);
+  if (arg === "--verbose" || arg === "-verbose") setVerbose(true);
+  else if (arg === "--dry-run" || arg === "-dry-run") setDryRun(true);
+  else return true;
   return false;
 });
 const [command, ...rest] = args;
+if (isDryRun()) console.log("dry run: nothing below is changed.");
 
 try {
   switch (command) {

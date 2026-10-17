@@ -7,6 +7,17 @@ export function setVerbose(on: boolean): void {
   verbose = on;
 }
 
+// Set by --dry-run: changing commands are printed but not run. Read-only calls still run.
+let dryRun = false;
+
+export function setDryRun(on: boolean): void {
+  dryRun = on;
+}
+
+export function isDryRun(): boolean {
+  return dryRun;
+}
+
 // Shows a git command the way it would be typed, quoting arguments that contain spaces.
 function show(args: string[]): string {
   const shown = args.map((arg) => (/\s/.test(arg) ? `"${arg}"` : arg));
@@ -22,6 +33,7 @@ function run(args: string[]): string {
 // Action commands are always printed, so the user sees what changed.
 function act(args: string[], options: { cwd?: string } = {}): void {
   console.log(show(args));
+  if (dryRun) return;
   execFileSync("git", args, { stdio: "inherit", ...options });
 }
 
@@ -82,6 +94,11 @@ export function assertClean(): void {
 
 // Fetches origin and fails if any branch differs from its origin copy.
 export function assertSynced(branches: string[]): void {
+  // A dry run has not pushed or merged anything, so the refs would not match.
+  if (dryRun) {
+    console.log("dry run: sync check skipped");
+    return;
+  }
   git("fetch origin");
   for (const branch of branches) {
     if (
