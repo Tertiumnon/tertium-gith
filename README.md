@@ -40,6 +40,9 @@ gith clean                          # remove untracked files and directories
 gith reset                          # discard uncommitted changes, then clean
 gith setup --hooks [--force]        # write .githooks/pre-commit, set core.hooksPath
 gith help                           # full usage
+
+# Add --verbose to any command to see the git commands it runs, including read-only ones.
+gith list --tags --verbose
 ```
 
 The dashes decide how a flag takes its value:
@@ -51,6 +54,8 @@ The dashes decide how a flag takes its value:
 `--remote`, `--both`, `--hooks`, `--force`, `--tags` and `--commits` also work with one dash, as in `-remote` or `-force`. `-l` is short for `-limit`.
 
 Each command takes one of its flags; giving two is an error.
+
+`--verbose` (or `-verbose`) works with any command and can go anywhere on the line. Action commands always print the git commands they run, such as `> git push -u origin login`. With `--verbose`, the read-only calls are printed too, such as `rev-parse` and `ls-remote`. Commands run git directly, without a shell, so branch names are never parsed by it.
 
 ## Git commands
 

@@ -2,6 +2,7 @@
 import { exit } from "node:process";
 import { onlyOne, parseFlags } from "./args";
 import { create, merge } from "./commands";
+import { setVerbose } from "./git";
 import { setup } from "./hooks";
 import { list } from "./list";
 import { clean, remove, reset, switchBranch, sync } from "./maintenance";
@@ -34,6 +35,7 @@ Usage:
   gith reset                 discard uncommitted changes and untracked files (hard reset + clean)
   gith setup --hooks [--force]  write .githooks/pre-commit and set core.hooksPath
   gith help                  show this help
+  --verbose (any command)    also print read-only git calls, such as rev-parse and ls-remote
 
 Dashes decide how a flag takes its value:
   -r <v>, -release <v>, -h <v>, -hotfix <v>   explicit version
@@ -42,7 +44,13 @@ Dashes decide how a flag takes its value:
   --patch | -patch, --minor | -minor, --major | -major
   --hooks, --force, --remote, --both                  switches; one dash works too (-hooks)`;
 
-const [command, ...rest] = process.argv.slice(2);
+// --verbose is global: it is removed here, so no command has to parse it.
+const args = process.argv.slice(2).filter((arg) => {
+  if (arg !== "--verbose" && arg !== "-verbose") return true;
+  setVerbose(true);
+  return false;
+});
+const [command, ...rest] = args;
 
 try {
   switch (command) {

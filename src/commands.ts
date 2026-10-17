@@ -1,4 +1,3 @@
-import { execSync } from "node:child_process";
 import { type Flags, onlyOne } from "./args";
 import {
   assertClean,
@@ -107,9 +106,9 @@ function mergeInto(target: string): void {
   git("pull");
   git(`checkout ${source}`);
   try {
-    execSync(`git merge ${target} --no-edit`, { stdio: "inherit" });
+    gitArgs(["merge", target, "--no-edit"]);
   } catch {
-    execSync("git merge --abort", { stdio: "inherit" });
+    gitArgs(["merge", "--abort"]);
     throw new Error(
       `merging '${target}' into '${source}' conflicts; resolve on '${source}' and retry.`,
     );
