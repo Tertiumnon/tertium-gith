@@ -152,8 +152,9 @@ export function detachedOptions(
 
 // gith remove -b <branch> [--local | --remote]: removes the branch here and on origin, or one side.
 // gith remove --branch [--local | --remote]: lists the branches and asks which to remove.
+// Without -b, remove picks from the list, the same as --branch.
 export async function remove(flags: Flags): Promise<void> {
-  const name = flags.get("branch");
+  const name = flags.get("branch") ?? "";
   const side = onlyOne(flags, ["local", "remote"]);
   const scope: Scope = side ?? "pair";
   const obsoleteOn = flags.has("obsolete");
@@ -169,7 +170,7 @@ export async function remove(flags: Flags): Promise<void> {
       ? "usage: gith remove --detached [--all | -l <n>]"
       : "usage: gith remove --obsolete [--local] [-days <n>] [-l <n>]";
     if (
-      name !== undefined ||
+      flags.has("branch") ||
       (obsoleteOn && side === "remote") ||
       (detachedOn && side)
     )
@@ -177,10 +178,6 @@ export async function remove(flags: Flags): Promise<void> {
     if (detachedOn) return detached(flags);
     return obsolete(flags, side === "local" ? "local" : "pair");
   }
-  if (name === undefined)
-    throw new Error(
-      "usage: gith remove -b <branch> [--local | --remote], or gith remove --branch to pick",
-    );
 
   if (name) {
     if (flags.has("limit"))

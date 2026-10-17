@@ -55,7 +55,8 @@ Clean up branches (every removal shows what it will remove first)
   gith remove -b <branch>            delete the branch here and on origin (either side may be missing)
   gith remove -b <branch> --local    delete only the local branch
   gith remove -b <branch> --remote   delete only the origin branch
-  gith remove --branch [-l <n>]      pick from branch pairs (here and on origin)
+  gith remove                        pick branches to delete from a list (here and on origin)
+  gith remove --branch [-l <n>]      same list, for branch pairs (here and on origin)
   gith remove --branch --local       pick from local branches
   gith remove --branch --remote      pick from origin branches
   gith remove --obsolete [--local] [-days <n>]   remove branches untouched for 90 days, after Y/n
