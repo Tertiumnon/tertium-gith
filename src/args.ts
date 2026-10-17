@@ -29,6 +29,7 @@ const SPECS = new Map<string, Kind>([
   ["obsolete", "switch"],
   ["graph", "switch"],
   ["stashes", "switch"],
+  ["pockets", "switch"],
   ["detached", "switch"],
   ["overall", "switch"],
   ["current-year", "switch"],

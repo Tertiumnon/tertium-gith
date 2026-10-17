@@ -53,7 +53,8 @@ Look at the repo
   gith status                        branch vs origin, and staged, unstaged and untracked counts
   gith list --commits [--graph] [-l <n>]   newest commits on this branch (default 5)
   gith list --tags [-l <n>]          tags with a local and origin column (newest 5 by default)
-  gith list --stashes [-l <n>]       stashes, newest first (default 5)
+  gith list --stashes [-l <n>]       stashes, newest first (default 5); --pockets shows them with Gorlum
+  gith show ...                      same as gith list
   gith tree [-l <n>]                 working trees: path, branch, HEAD (current marked *)
   gith stat [period] [-limit <n>]    fun facts about this branch: biggest commit, busiest day, streaks
                                      period: --overall (default), --current-year|-month|-week, --last-year|-month|-week
@@ -71,7 +72,7 @@ Help
 
 Flags: a single dash always takes a value, a double dash never does.
   -b -r -h -l -m -n -limit -message -name -release -hotfix -branch   take a value, e.g. -limit 10
-  --patch --minor --major --local --remote --obsolete --detached --tags --commits --graph --stashes   switches
+  --patch --minor --major --local --remote --obsolete --detached --tags --commits --graph --stashes --pockets   switches
   --branch --release --hotfix alone pick automatically (picker, latest tag)
   -limit caps listings and stat (or -l); -days sets the age for remove --obsolete`;
 
@@ -107,6 +108,7 @@ try {
       clean(parseFlags(rest));
       break;
     case "list":
+    case "show":
       list(parseFlags(rest));
       break;
     case "status":

@@ -48,21 +48,32 @@ function yesNo(value: boolean): string {
 
 // gith list --tags | --commits, showing the first -limit rows (default 5).
 export function list(flags: Flags): void {
-  const kind = onlyOne(flags, ["tags", "commits", "stashes"]);
+  const kind = onlyOne(flags, ["tags", "commits", "stashes", "pockets"]);
   if (!kind)
     throw new Error(
-      "usage: gith list --tags | --commits [--graph] | --stashes [-limit <n>]",
+      "usage: gith list --tags | --commits [--graph] | --stashes | --pockets [-limit <n>]",
     );
   if (flags.has("graph") && kind !== "commits")
     throw new Error("--graph only applies to --commits.");
   const limit = parseLimit(flags) ?? DEFAULT_LIMIT;
   if (kind === "commits") commits(limit, flags.has("graph"));
-  else if (kind === "stashes") stashes(limit);
+  else if (kind === "stashes") stashes(limit, false);
+  else if (kind === "pockets") stashes(limit, true);
   else tags(limit);
 }
 
+// Gorlum guards his pockets. --pockets shows the stashes with him.
+const GORLUM = [
+  '      .-"""-.',
+  "     /  o o  \\",
+  "    |   ___   |   my precious pockets!",
+  "     \\ (___) /",
+  "      '-._.-'",
+];
+
 // Newest first. Each row is the stash selector, its date, and git's description of it.
-function stashes(limit: number): void {
+function stashes(limit: number, withGorlum: boolean): void {
+  if (withGorlum) console.log(GORLUM.join("\n"));
   const rows = captureArgs([
     "stash",
     "list",
