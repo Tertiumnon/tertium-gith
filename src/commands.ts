@@ -5,6 +5,7 @@ import {
   assertSynced,
   capture,
   git,
+  gitArgs,
   hasOnOrigin,
   listTags,
 } from "./git";
@@ -18,6 +19,7 @@ import {
 import { nextVersion } from "./versions";
 
 // gith create -b <branch> | -r [version] | -h [version]
+// Creates the branch and pushes it, but never switches: the current branch stays checked out.
 export function create(flags: Flags): void {
   const kind = onlyOne(flags, ["branch", "release", "hotfix"]);
   if (!kind)
@@ -27,7 +29,7 @@ export function create(flags: Flags): void {
   const value = flags.get(kind) ?? "";
   if (kind === "branch") {
     if (!value) throw new Error("usage: gith create -b <branch>");
-    start(value);
+    createBranch(value);
     return;
   }
   open(kind, value || nextContainerVersion(kind));
@@ -49,15 +51,15 @@ export function merge(flags: Flags): void {
   mergeInto(target);
 }
 
-// Starts a work branch named by its goal, from the latest develop.
-function start(goal: string): void {
+// Creates a work branch named by its goal, from origin/develop, and pushes it with upstream
+// tracking. Leaves the current branch checked out.
+export function createBranch(goal: string): void {
   if (isContainer(goal))
     throw new Error(`'${goal}' is a container name; pick a goal.`);
-  assertClean();
-  git("checkout develop");
-  git("pull");
-  git(`checkout -b ${goal}`);
-  git(`push -u origin ${goal}`);
+  if (hasOnOrigin(goal)) throw new Error(`'${goal}' already exists on origin.`);
+  gitArgs(["fetch", "origin", "develop"]);
+  gitArgs(["branch", goal, "origin/develop"]);
+  gitArgs(["push", "-u", "origin", goal]);
 }
 
 // Next version after the latest tag (local or origin): release bumps the minor,
@@ -75,15 +77,14 @@ function nextContainerVersion(kind: ContainerKind): string {
   return version;
 }
 
-// Creates release/<version> from develop, or hotfix/<version> from main.
+// Creates release/<version> from develop, or hotfix/<version> from main, without switching.
 function open(kind: ContainerKind, version: string): void {
   const name = containerName(kind, version);
   if (hasOnOrigin(name)) throw new Error(`'${name}' already exists on origin.`);
-  assertClean();
-  git(`checkout ${containerBase(kind)}`);
-  git("pull");
-  git(`checkout -b ${name}`);
-  git(`push -u origin ${name}`);
+  const base = containerBase(kind);
+  gitArgs(["fetch", "origin", base]);
+  gitArgs(["branch", name, `origin/${base}`]);
+  gitArgs(["push", "-u", "origin", name]);
 }
 
 // Merges the current work branch into the target branch.

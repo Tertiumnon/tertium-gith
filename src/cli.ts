@@ -9,7 +9,7 @@ import { release } from "./release";
 const USAGE = `gith - git helper: branch flow and everyday git commands
 
 Usage:
-  gith create -b <branch>      work branch from develop, named by its goal
+  gith create -b <branch>      work branch from develop, named by its goal (no switch)
   gith create -r <version>     release/<version> from develop
   gith create --release        release, version = minor after the latest tag (local or origin)
   gith create -h <version>     hotfix/<version> from main
@@ -20,7 +20,7 @@ Usage:
   gith release --patch         bump the patch version, publish through main
   gith release --minor         bump the minor version, from develop into main
   gith release --major         bump the major version, from develop into main
-  gith switch -b <branch>    switch to a branch
+  gith switch -b <branch>    switch to a branch, creating it from develop if missing
   gith remove -b <branch>    delete a merged local branch (git branch -d)
   gith remove -b             list local branches and pick which to delete
   gith remove -b [<branch>] --remote   also delete on origin; no name lists origin branches

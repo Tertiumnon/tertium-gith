@@ -1,6 +1,14 @@
 import { createInterface } from "node:readline/promises";
 import { type Flags, onlyOne } from "./args";
-import { assertBranchName, capture, captureArgs, gitArgs } from "./git";
+import { createBranch } from "./commands";
+import {
+  assertBranchName,
+  capture,
+  captureArgs,
+  gitArgs,
+  hasLocal,
+  hasOnOrigin,
+} from "./git";
 import { isContainer } from "./rules";
 
 type Scope = "local" | "remote" | "both";
@@ -21,9 +29,12 @@ function requireBranch(flags: Flags, command: string): string {
   return branch;
 }
 
-// gith switch -b <branch>
+// gith switch -b <branch>: switches to the branch. If it exists neither here nor on origin,
+// it is created first, the same way as gith create -b.
 export function switchBranch(flags: Flags): void {
-  gitArgs(["switch", "--", requireBranch(flags, "switch")]);
+  const branch = requireBranch(flags, "switch");
+  if (!hasLocal(branch) && !hasOnOrigin(branch)) createBranch(branch);
+  gitArgs(["switch", "--", branch]);
 }
 
 // Branches that can be offered for removal. Containers are never offered, and the

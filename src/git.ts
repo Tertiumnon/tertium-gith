@@ -16,6 +16,11 @@ export function captureArgs(args: string[]): string {
   return execFileSync("git", args, { encoding: "utf-8" }).trim();
 }
 
+// True when the branch exists in this repository.
+export function hasLocal(branch: string): boolean {
+  return captureArgs(["branch", "--list", branch]) !== "";
+}
+
 // Throws unless `name` is a valid branch name for git.
 export function assertBranchName(name: string): void {
   try {

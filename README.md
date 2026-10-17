@@ -7,7 +7,7 @@ Git helper: the branch flow from [git-convention](https://github.com/Tertiumnon/
 ## Usage
 
 ```bash
-gith create -b login-redirect       # work branch from develop, named by its goal
+gith create -b login-redirect       # work branch from develop, named by its goal; stays on the current branch
 gith create -r 1.2.0                # release/1.2.0 from develop
 gith create -h 1.2.1                # hotfix/1.2.1 from main
 gith create --release               # release, version = minor after the latest tag
@@ -20,7 +20,7 @@ gith release --minor                # npm version minor, from develop into main
 gith release --major                # npm version major, from develop into main
 gith help                           # full usage
 
-gith switch -b login-redirect       # switch to a branch
+gith switch -b login-redirect       # switch to the branch, creating it from develop if it is missing
 gith remove -b login-redirect       # delete a merged local branch (rm is an alias)
 gith remove -b login-redirect --remote   # also delete it on origin
 gith remove -b login-redirect --both     # delete locally, then on origin
@@ -45,7 +45,7 @@ Each command takes one of its flags; giving two is an error.
 
 ## Git commands
 
-- **`switch -b`** switches to a branch.
+- **`switch -b`** switches to a branch. If the branch exists neither locally nor on origin, it is created first, the same way as `create -b`, and then checked out.
 - **`remove -b <branch>`** runs `git branch -d`, so git refuses to delete an unmerged branch. `--remote` deletes the branch on origin; `--both` deletes it locally first, then on origin. Containers (`develop`, `main`, `release/*`, `hotfix/*`) are refused.
 - **`remove -b`** with no name lists the branches and asks which to remove. Answer with numbers or ranges, such as `1,3-4`; an empty answer cancels. The list needs a terminal. With `--remote` it lists origin branches, and with `--both` it lists only branches that exist both locally and on origin, shown as `name  (local + origin)`. The checked-out branch and containers are never listed. Choosing items is the confirmation, so nothing else is asked. If a local delete fails (for example, an unmerged branch), the removal stops there and earlier picks stay deleted.
 - **`sync`** runs `git fetch --all --tags --prune`.
@@ -55,8 +55,8 @@ Each command takes one of its flags; giving two is an error.
 
 ## What it does
 
-- **`create -b`** checks the working tree is clean, updates `develop`, creates the branch, and pushes it with upstream tracking.
-- **`create -r` / `create -h`** creates a container from its base (`develop` for release, `main` for hotfix), refusing names that already exist on origin.
+- **`create -b`** creates the branch from `origin/develop`, pushes it with upstream tracking, and leaves the current branch checked out. It does not touch the working tree, so it works with uncommitted changes.
+- **`create -r` / `create -h`** creates a container from its base (`develop` for release, `main` for hotfix), refusing names that already exist on origin. Like `create -b`, it does not switch.
 - **With `--release` or `--hotfix` (no value)**, the version is worked out from the highest `vX.Y.Z` tag across local tags and origin: `-r` takes the next minor (`1.2.1` → `1.3.0`), `-h` takes the next patch (`1.2.1` → `1.2.2`). With no tags yet, the first release is `0.1.0` and the first hotfix `0.0.1`. The version is printed before the branch is created.
 - **`merge`** pushes the work branch, merges the target into it first (so conflicts happen on the work branch and are aborted cleanly), then merges it into the target with `--no-ff`, pushes, and checks that both branches match origin.
 
@@ -84,7 +84,7 @@ The git commands from [@tertium/hlpr](https://github.com/Tertiumnon/tertium-hlpr
 | `hlpr git clean` | `gith clean` |
 | (new) | `gith reset`: hard reset plus clean |
 | `hlpr git setup -hooks [--force]` | `gith setup --hooks [--force]` |
-| `hlpr git create -b <b>` (branch without switching) | not moved: `gith create -b` is the flow command and starts from develop |
+| `hlpr git create -b <b>` (branch without switching) | `gith create -b <b>` (same behaviour: creates from develop and stays put) |
 
 Branch names are passed to git as argument lists, so they are never parsed by the shell.
 
