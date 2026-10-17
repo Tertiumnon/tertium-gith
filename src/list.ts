@@ -2,6 +2,8 @@ import { type Flags, onlyOne } from "./args";
 import { captureArgs } from "./git";
 import { compare, parseSemver } from "./versions";
 
+const DEFAULT_LIMIT = "5";
+
 export interface TagPair {
   name: string;
   local: boolean;
@@ -46,8 +48,46 @@ function yesNo(value: boolean): string {
 
 // gith list --tags: one row per tag, showing whether it exists locally and on origin.
 export function list(flags: Flags): void {
-  const kind = onlyOne(flags, ["tags"]);
-  if (!kind) throw new Error("usage: gith list --tags");
+  const kind = onlyOne(flags, ["tags", "commits"]);
+  if (!kind)
+    throw new Error("usage: gith list --tags | --commits [-limit <n>]");
+  if (kind === "commits") {
+    commits(flags.get("limit") ?? DEFAULT_LIMIT);
+    return;
+  }
+  if (flags.has("limit")) throw new Error("-limit only applies to --commits.");
+  tags();
+}
+
+// gith list --commits: newest first, from the current branch.
+function commits(limit: string): void {
+  if (!/^[1-9]\d*$/.test(limit))
+    throw new Error("-limit needs a positive whole number.");
+  if (!hasHead()) {
+    console.log("No commits.");
+    return;
+  }
+  console.log(
+    captureArgs([
+      "log",
+      `-n${limit}`,
+      "--date=short",
+      "--format=%h  %ad  %an  %s",
+    ]),
+  );
+}
+
+// False on a repository with no commits yet, where HEAD does not resolve.
+function hasHead(): boolean {
+  try {
+    captureArgs(["rev-parse", "--verify", "--quiet", "HEAD"]);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function tags(): void {
   const pairs = tagPairs(localTags(), originTags());
   if (pairs.length === 0) {
     console.log("No tags.");

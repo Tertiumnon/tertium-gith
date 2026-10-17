@@ -78,3 +78,79 @@ describe("gith list --tags", () => {
     }
   }, 60_000);
 });
+
+describe("gith list --commits", () => {
+  function repoWithCommits(count: number): { tmp: string; repo: string } {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "gith-commits-"));
+    const repo = path.join(tmp, "repo");
+    fs.mkdirSync(repo);
+    git(repo, ["init", "-b", "main"]);
+    git(repo, ["config", "user.email", "test@example.com"]);
+    git(repo, ["config", "user.name", "Test"]);
+    for (let i = 1; i <= count; i++) {
+      fs.writeFileSync(path.join(repo, `f${i}.txt`), `${i}`);
+      git(repo, ["add", "."]);
+      git(repo, ["commit", "-m", `commit ${i}`]);
+    }
+    return { tmp, repo };
+  }
+
+  function cli(cwd: string, args: string[]) {
+    return spawnSync(process.execPath, [CLI, ...args], {
+      cwd,
+      encoding: "utf8",
+    });
+  }
+
+  test("lists the newest commits, five by default, and -l/-limit cap the count", () => {
+    const { tmp, repo } = repoWithCommits(7);
+    try {
+      const defaultList = cli(repo, ["list", "--commits"])
+        .stdout.trim()
+        .split("\n");
+      expect(defaultList).toHaveLength(5);
+      expect(defaultList[0]).toContain("commit 7");
+
+      const two = cli(repo, ["list", "--commits", "-l", "2"])
+        .stdout.trim()
+        .split("\n");
+      expect(two).toHaveLength(2);
+      expect(two[1]).toContain("commit 6");
+
+      expect(
+        cli(repo, ["list", "--commits", "-limit", "1"])
+          .stdout.trim()
+          .split("\n"),
+      ).toHaveLength(1);
+      expect(
+        cli(repo, ["list", "--commits", "--limit", "10"])
+          .stdout.trim()
+          .split("\n"),
+      ).toHaveLength(7);
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  }, 60_000);
+
+  test("rejects a bad limit and a limit with --tags; reports an empty repository", () => {
+    const { tmp, repo } = repoWithCommits(1);
+    try {
+      expect(cli(repo, ["list", "--commits", "-l", "0"]).status).toBe(1);
+      expect(cli(repo, ["list", "--commits", "-l", "x"]).status).toBe(1);
+      expect(cli(repo, ["list", "--commits", "-l"]).status).toBe(1);
+      expect(cli(repo, ["list", "--tags", "-l", "2"]).status).toBe(1);
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+
+    const empty = fs.mkdtempSync(path.join(os.tmpdir(), "gith-empty-"));
+    try {
+      git(empty, ["init", "-b", "main"]);
+      expect(cli(empty, ["list", "--commits"]).stdout.trim()).toBe(
+        "No commits.",
+      );
+    } finally {
+      fs.rmSync(empty, { recursive: true, force: true });
+    }
+  }, 60_000);
+});
