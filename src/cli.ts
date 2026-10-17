@@ -13,6 +13,7 @@ import { stash, unstash } from "./stash";
 import { stat } from "./stat";
 import { status } from "./status";
 import { tree } from "./tree";
+import { versionText } from "./version";
 
 const USAGE = `gith - git helper: branch flow and everyday git commands
 
@@ -58,6 +59,7 @@ Usage:
   gith clean                 remove untracked files and directories (keeps ignored)
   gith reset                 discard uncommitted changes and untracked files (hard reset + clean)
   gith help                  show this help
+  gith --version             show the version with the mascot
   --verbose (any command)    also print read-only git calls, such as rev-parse and ls-remote
   --dry-run (any command)    print the git commands that would run, without running them
 
@@ -146,6 +148,9 @@ try {
       release(kind);
       break;
     }
+    case "--version":
+      console.log(versionText());
+      break;
     case undefined:
     case "help":
     case "--help":

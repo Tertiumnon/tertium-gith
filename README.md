@@ -1,5 +1,16 @@
 # gith
 
+```
+          o
+         /
+   o----o----o
+    \   |   /
+     \  |  /
+      (o_o)     gith v0.1.0
+      /|_|\     git happens.
+       d b
+```
+
 Git helper: the branch flow from [git-convention](https://github.com/Tertiumnon/git-convention) (goal-named work branches, `release/*` and `hotfix/*` containers, merges that sync both sides with origin), plus everyday git commands: status, switch, update, undo, amend, squash, stash, remove, list, tree, sync, clean, reset, open, doctor and stat. Any command takes `--dry-run` to show the git commands it would run. No dependencies beyond git and [Bun](https://bun.com).
 
 > **Very early state (0.1.0).** Commands and flags may change without notice, and the tool has only been run against throwaway test repositories. Check the result with `git log` and `git status` before you push.
@@ -59,6 +70,7 @@ gith sync                           # fetch all remotes and tags, prune stale re
 gith clean                          # remove untracked files and directories
 gith reset                          # discard uncommitted changes, then clean
 gith help                           # full usage
+gith --version                      # the version, with the mascot
 
 # Add --verbose to any command to see the git commands it runs, including read-only ones.
 gith list --tags --verbose
