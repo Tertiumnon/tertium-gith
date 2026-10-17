@@ -17,6 +17,7 @@ import {
 import { open } from "./components/open/open";
 import { setAssumeYes } from "./components/prompt/prompt";
 import { release } from "./components/release/release";
+import { setup } from "./components/setup/setup";
 import { stash, unstash } from "./components/stash/stash";
 import { stat } from "./components/stat/stat";
 import { status } from "./components/status/status";
@@ -78,6 +79,7 @@ Remote and health
   gith open                          open origin in the browser
   gith doctor                        check the repo is ready for the branch flow (exit 1 on failures)
   gith changelog [--dry-run]         add an entry for package.json's version to CHANGELOG.md (commits since the last tag)
+  gith setup -n npm [--force]        write a shared pre-commit hook (lint, typecheck, test) for an npm project; --force overwrites it
 
 Help
   gith help                          show this help
@@ -161,6 +163,9 @@ try {
       break;
     case "changelog":
       changelog(parseFlags(rest));
+      break;
+    case "setup":
+      setup(parseFlags(rest));
       break;
     case "doctor":
       if (!doctor(parseFlags(rest))) exit(1);
