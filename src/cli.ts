@@ -7,6 +7,7 @@ import { setup } from "./hooks";
 import { list } from "./list";
 import { clean, remove, reset, switchBranch, sync } from "./maintenance";
 import { release } from "./release";
+import { tree } from "./tree";
 
 const USAGE = `gith - git helper: branch flow and everyday git commands
 
@@ -31,6 +32,7 @@ Usage:
   gith list --tags [-l <n>]  tags with a local and origin column (newest 5 by default)
   gith list --commits [-l <n>]  newest commits on this branch (default 5)
   -limit <n> (-l, --limit) caps any listing: list, and the remove picker (default: all)
+  gith tree [-l <n>]         working trees of this repo: path, branch, HEAD (current marked *)
   gith sync                  fetch all remotes, tags, and prune stale refs
   gith clean                 remove untracked files and directories (keeps ignored)
   gith reset                 discard uncommitted changes and untracked files (hard reset + clean)
@@ -76,6 +78,9 @@ try {
       break;
     case "list":
       list(parseFlags(rest));
+      break;
+    case "tree":
+      tree(parseFlags(rest));
       break;
     case "reset":
       reset(parseFlags(rest));

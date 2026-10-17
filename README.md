@@ -1,6 +1,6 @@
 # gith
 
-Git helper: the branch flow from [git-convention](https://github.com/Tertiumnon/git-convention) (goal-named work branches, `release/*` and `hotfix/*` containers, merges that sync both sides with origin), plus everyday git commands: switch, remove, list, sync, clean, reset and a pre-commit hook setup. No dependencies beyond git and [Bun](https://bun.com).
+Git helper: the branch flow from [git-convention](https://github.com/Tertiumnon/git-convention) (goal-named work branches, `release/*` and `hotfix/*` containers, merges that sync both sides with origin), plus everyday git commands: switch, remove, list, tree, sync, clean, reset and a pre-commit hook setup. No dependencies beyond git and [Bun](https://bun.com).
 
 > **Very early state (0.1.0).** Commands and flags may change without notice, and the tool has only been run against throwaway test repositories. Check the result with `git log` and `git status` before you push.
 
@@ -37,6 +37,7 @@ gith list --tags                    # the newest 5 tags with a LOCAL and ORIGIN 
 gith list --tags -l 20              # the newest 20
 gith list --commits                 # the last 5 commits on this branch
 gith list --commits -l 10           # the last 10 (-limit 10 and --limit 10 work too)
+gith tree                           # working trees of this repo: path, branch, HEAD (current marked *)
 gith sync                           # fetch all remotes and tags, prune stale refs
 gith clean                          # remove untracked files and directories
 gith reset                          # discard uncommitted changes, then clean
@@ -65,6 +66,7 @@ Each command takes one of its flags; giving two is an error.
 - **`remove -b <branch>`** runs `git branch -d`, so git refuses to delete an unmerged branch. `--remote` deletes the branch on origin; `--both` deletes it locally first, then on origin. Containers (`develop`, `main`, `release/*`, `hotfix/*`) are refused.
 - **`remove -b`** with no name lists the branches and asks which to remove. `-limit <n>` shows only the first `n` (all by default), and the picker numbers only those. Answer with numbers or ranges, such as `1,3-4`; an empty answer cancels. The list needs a terminal. With `--remote` it lists origin branches, and with `--both` it lists only branches that exist both locally and on origin, shown as `name  (local + origin)`. The checked-out branch and containers are never listed. Choosing items is the confirmation, so nothing else is asked. If a local delete fails (for example, an unmerged branch), the removal stops there and earlier picks stay deleted.
 - **`sync`** runs `git fetch --all --tags --prune`.
+- **`tree`** lists the working trees of the repository (`git worktree list`): each path, its branch or `(detached)`, and its short HEAD. The current one is marked `*`, and bare, locked or prunable trees are noted. `-limit <n>` caps the rows; all are shown by default.
 - **`list --tags`** shows every tag once, with yes/no columns for local and origin, so you can see which tags are unpushed or missing locally. Version tags are listed newest first, and only the first 5 are shown by default. `-limit <n>` (or `-l`, `--limit`) changes that and adds a note when rows are left out.
 - **`list --commits`** shows the newest commits on the current branch, one per line: short hash, date, author and subject. It shows 5 by default; `-l <n>` (or `-limit`/`--limit`) changes that and must be a positive whole number. `-limit` only applies to `--commits`. `gith list` with no flag prints usage.
 - **`clean`** runs `git clean -fd`. It permanently removes untracked files and directories, but keeps ignored files.
