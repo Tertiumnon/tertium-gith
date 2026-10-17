@@ -17,58 +17,63 @@ import { versionText } from "./version";
 
 const USAGE = `gith - git helper: branch flow and everyday git commands
 
-Usage:
-  gith create -b <branch>      work branch from develop, named by its goal (no switch)
-  gith create -r <version>     release/<version> from develop
-  gith create --release        release, version = minor after the latest tag (local or origin)
-  gith create -h <version>     hotfix/<version> from main
-  gith create --hotfix         hotfix, version = patch after the latest tag (local or origin)
-  gith merge                   merge this branch into develop
-  gith merge -r <version>      merge this branch into release/<version>
-  gith merge -h <version>      merge this branch into hotfix/<version>
-  gith release --patch         bump the patch version, publish through main
-  gith release --minor         bump the minor version, from develop into main
-  gith release --major         bump the major version, from develop into main
-  gith switch -b <branch>    switch to a branch, creating it from develop if missing
-  gith remove -b <branch>    delete the branch here and on origin (either side may be missing)
-  gith remove -b <branch> --local    delete only the local branch (git branch -d)
-  gith remove -b <branch> --remote   delete only the origin branch
-  gith remove --branch [-l <n>]      list branch pairs (here and on origin) and pick which to delete
-  gith remove --branch --local       list local branches and pick
-  gith remove --branch --remote      list origin branches and pick
-  gith rm                    alias of remove
-  gith remove --obsolete [--local] [-days <n>]  remove branches untouched for 90 days (default), after Y/n
-  gith remove --detached [-l <n>]    pick local branches that have no origin copy
-  gith list --tags [-l <n>]  tags with a local and origin column (newest 5 by default)
-  gith list --commits [--graph] [-l <n>]  newest commits on this branch (default 5)
-  gith list --stashes [-l <n>]  stashes, newest first (default 5)
-  -limit <n> (or -l <n>) caps any listing: list, and the picker (default: all)
-  gith status                show branch vs origin, and staged, unstaged and untracked counts
-  gith update                merge origin/develop into this work branch
-  gith undo                  undo the last commit, keep its changes staged (not if pushed)
-  gith amend                 add staged changes to the last commit, keep its message (if pushed: asks, then force-pushes)
-  gith stash [-n <name>]     stash changes, including untracked files
-  gith squash -limit <n> [-m <msg>]  combine the last n commits into one (keeps the oldest message)
-  gith stat [period] [-limit <n>]    fun facts about this branch: biggest commit, busiest day, streaks...
-                                     period: --overall (default), --current-year|-month|-week, --last-year|-month|-week
-  gith unstash               bring back the latest stash
-  gith open                  open this repository's origin in the browser
-  gith doctor                check the repo is ready for the branch flow (exit 1 on failures)
-  gith tree [-l <n>]         working trees of this repo: path, branch, HEAD (current marked *)
-  gith sync                  fetch all remotes, tags, and prune stale refs
-  gith clean                 remove untracked files and directories (keeps ignored)
-  gith reset                 discard uncommitted changes and untracked files (hard reset + clean)
-  gith help                  show this help
-  gith --version             show the version with the mascot
-  --verbose (any command)    also print read-only git calls, such as rev-parse and ls-remote
-  --dry-run (any command)    print the git commands that would run, without running them
+Start and finish work
+  gith create -b <branch>            work branch from develop, named by its goal (no switch)
+  gith create -r <version>           release/<version> from develop
+  gith create -h <version>           hotfix/<version> from main
+  gith create --release | --hotfix   version from the latest tag: minor for release, patch for hotfix
+  gith switch -b <branch>            switch to a branch, creating it from develop if missing
+  gith update                        merge origin/develop into this work branch
+  gith merge [-r <v> | -h <v>]       merge this branch into develop, release/<v> or hotfix/<v>
+  gith release --patch | --minor | --major   bump the version and publish
 
-Flags follow one rule: a single dash always takes a value, a double dash never does.
-  -name <value>   -b, -branch, -r, -release, -h, -hotfix, -l, -limit, -m, -message,
-                  -n, -name, -limit (squash: how many commits)
-  --name          --patch, --minor, --major, --local, --remote, --obsolete, --detached, --tags,
-                  --commits, --graph, --stashes
-  alone           --branch (picker), --release and --hotfix (latest tag)`;
+Fix history
+  gith undo                          undo the last commit, keep its changes staged (not if pushed)
+  gith amend                         fold staged changes into the last commit (if pushed: asks, then force-pushes)
+  gith squash -limit <n> [-m <msg>]  combine the last n commits into one (keeps the oldest message)
+
+Save and reset work
+  gith stash [-n <name>]             stash changes, including untracked files
+  gith unstash                       bring back the latest stash
+  gith reset                         discard uncommitted changes and untracked files
+  gith clean                         remove untracked files and directories (keeps ignored)
+
+Clean up branches (every removal shows what it will remove first)
+  gith remove -b <branch>            delete the branch here and on origin (either side may be missing)
+  gith remove -b <branch> --local    delete only the local branch
+  gith remove -b <branch> --remote   delete only the origin branch
+  gith remove --branch [-l <n>]      pick from branch pairs (here and on origin)
+  gith remove --branch --local       pick from local branches
+  gith remove --branch --remote      pick from origin branches
+  gith remove --obsolete [--local] [-days <n>]   remove branches untouched for 90 days, after Y/n
+  gith remove --detached [-l <n>]    pick local branches that have no origin copy
+  gith rm                            alias of remove
+
+Look at the repo
+  gith status                        branch vs origin, and staged, unstaged and untracked counts
+  gith list --commits [--graph] [-l <n>]   newest commits on this branch (default 5)
+  gith list --tags [-l <n>]          tags with a local and origin column (newest 5 by default)
+  gith list --stashes [-l <n>]       stashes, newest first (default 5)
+  gith tree [-l <n>]                 working trees: path, branch, HEAD (current marked *)
+  gith stat [period] [-limit <n>]    fun facts about this branch: biggest commit, busiest day, streaks
+                                     period: --overall (default), --current-year|-month|-week, --last-year|-month|-week
+
+Remote and health
+  gith sync                          fetch all remotes and tags, prune stale refs
+  gith open                          open origin in the browser
+  gith doctor                        check the repo is ready for the branch flow (exit 1 on failures)
+
+Help
+  gith help                          show this help
+  gith --version                     show the version with the mascot
+  --verbose                          (any command) also print read-only git calls
+  --dry-run                          (any command) print the git commands that would run, without running them
+
+Flags: a single dash always takes a value, a double dash never does.
+  -b -r -h -l -m -n -limit -message -name -release -hotfix -branch   take a value, e.g. -limit 10
+  --patch --minor --major --local --remote --obsolete --detached --tags --commits --graph --stashes   switches
+  --branch --release --hotfix alone pick automatically (picker, latest tag)
+  -limit caps listings and stat (or -l); -days sets the age for remove --obsolete`;
 
 // --verbose and --dry-run are global: they are removed here, so no command has to parse them.
 const args = process.argv.slice(2).filter((arg) => {
