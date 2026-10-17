@@ -37,6 +37,8 @@ gith create --release               # release, version = minor after the latest 
 gith create --hotfix                # hotfix, version = patch after the latest tag
 gith switch -b login-redirect       # switch to the branch, creating it from develop if it is missing
 gith switch -commit 3f2a1b9         # detach HEAD at that commit, to look at old code
+gith switch --release               # switch to the newest release/* (local or origin); -r 1.9.0 for one version
+gith switch --hotfix                # switch to the newest hotfix/* (local or origin); -h 1.2.1 for one version
 gith update                         # merge origin/develop into this work branch
 gith merge                          # this branch into develop
 gith merge -r 1.2.0                 # this branch into release/1.2.0

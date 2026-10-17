@@ -2,6 +2,7 @@ import { createInterface } from "node:readline/promises";
 import { onlyOne, parseLimit } from "../args/args";
 import type { Flags } from "../args/args.types";
 import { createBranch } from "../flow/flow";
+import { newestContainer } from "../flow/flow.utils";
 import {
   assertBranchName,
   assertCleanTree,
@@ -12,7 +13,7 @@ import {
   isDetached,
 } from "../git/git";
 import { confirm } from "../prompt/prompt";
-import { isContainer } from "../rules/rules";
+import { containerName, isContainer } from "../rules/rules";
 import { DEFAULT_DAYS } from "./maintenance.constants";
 import type { Option, Scope, Sides } from "./maintenance.types";
 import {
@@ -32,6 +33,23 @@ import {
 // On a detached HEAD, gith switch -b creates the branch at the current commit, so new commits
 // stay on it.
 export function switchBranch(flags: Flags): void {
+  // --release and --hotfix go to the newest existing branch; -r <v> and -h <v> to that version.
+  // They only switch: a branch that does not exist is an error, never created here.
+  const kind = onlyOne(flags, ["release", "hotfix"]);
+  if (kind !== undefined) {
+    if (flags.size > 1)
+      throw new Error(
+        `usage: gith switch --${kind} | -${kind === "release" ? "r" : "h"} <version>`,
+      );
+    const version = flags.get(kind) ?? "";
+    const name =
+      version === "" ? newestContainer(kind) : containerName(kind, version);
+    if (!hasLocal(name) && !hasOnOrigin(name)) {
+      throw new Error(`'${name}' does not exist, locally or on origin.`);
+    }
+    gitArgs(["switch", "--", name]);
+    return;
+  }
   const commit = flags.get("commit");
   if (commit !== undefined) {
     if (flags.has("branch") || flags.size > 1)
