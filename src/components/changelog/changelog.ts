@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import type { Flags } from "../args/args.types";
-import { captureArgs, isDryRun } from "../git/git";
+import { captureArgs, gitArgs, isDryRun } from "../git/git";
 import { CHANGELOG_FILE_NAME } from "./changelog.constants";
 import {
   buildEntry,
@@ -30,9 +30,11 @@ function commitSubjectsSince(tag: string | null): string[] {
 // gith changelog [--dry-run]: prepends an entry for the version in package.json to CHANGELOG.md,
 // built from the commits since the last tag. Run it from the npm version script, so the file is
 // staged together with the version bump:
-//   "version": "gith changelog && git add CHANGELOG.md"
+//   "version": "gith changelog"
 export function changelog(flags: Flags): void {
-  if (flags.size > 0) throw new Error("usage: gith changelog [--dry-run]");
+  const noCommit = flags.has("no-commit");
+  if (flags.size > (noCommit ? 1 : 0))
+    throw new Error("usage: gith changelog [--dry-run] [--no-commit]");
   const root = process.cwd();
   const version = parsePackageVersion(
     readFileSync(path.join(root, "package.json"), "utf8"),
@@ -51,4 +53,14 @@ export function changelog(flags: Flags): void {
   const existing = existsSync(file) ? readFileSync(file, "utf8") : null;
   writeFileSync(file, mergeChangelogContent(existing, entry));
   console.log(`✅ ${CHANGELOG_FILE_NAME} updated for ${version}`);
+  if (noCommit) return;
+  // A commit of its own, with only CHANGELOG.md in it, so the version bump stays separate.
+  gitArgs(["add", "--", CHANGELOG_FILE_NAME]);
+  gitArgs([
+    "commit",
+    "-m",
+    `docs(changelog): ${version}`,
+    "--",
+    CHANGELOG_FILE_NAME,
+  ]);
 }

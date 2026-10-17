@@ -94,7 +94,7 @@ gith sync                           # fetch all remotes and tags, prune stale re
 gith open                           # open origin in the browser
 gith doctor                         # check the repo is ready for the branch flow
 gith changelog --dry-run            # preview the CHANGELOG.md entry for package.json's version
-gith changelog                      # write it (run from the npm version script, see below)
+gith changelog                      # write it as its own commit (docs(changelog): <version>); --no-commit only writes
 
 # Help
 gith help                           # full usage

@@ -110,6 +110,20 @@ describe("changelog", () => {
       expect(fs.existsSync(path.join(tmp, "CHANGELOG.md"))).toBe(false);
 
       expect(gith(["changelog"]).status).toBe(0);
+      expect(git(["log", "-1", "--format=%s"]).stdout.trim()).toBe(
+        "docs(changelog): 0.1.1",
+      );
+      expect(
+        git(["show", "--name-only", "--format=", "HEAD"]).stdout.trim(),
+      ).toBe("CHANGELOG.md");
+      expect(git(["status", "--porcelain"]).stdout).toContain(
+        " M package.json",
+      );
+      const commitsBefore = git(["rev-list", "--count", "HEAD"]).stdout.trim();
+      expect(gith(["changelog", "--no-commit"]).status).toBe(0);
+      expect(git(["rev-list", "--count", "HEAD"]).stdout.trim()).toBe(
+        commitsBefore,
+      );
       const written = fs.readFileSync(path.join(tmp, "CHANGELOG.md"), "utf8");
       expect(written.startsWith("# Changelog\n\n## 0.1.1 - ")).toBe(true);
       expect(written).toContain("- fix: after the tag");
