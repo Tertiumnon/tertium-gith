@@ -1,5 +1,9 @@
+import { execSync } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
 import { onlyOne } from "../args/args";
 import type { Flags } from "../args/args.types";
+import { changelog } from "../changelog/changelog";
+import { parsePackageVersion } from "../changelog/changelog.utils";
 import {
   assertCleanTree,
   assertSynced,
@@ -9,9 +13,11 @@ import {
   gitArgs,
   hasLocal,
   hasOnOrigin,
+  isDryRun,
 } from "../git/git";
 import { confirm, select } from "../prompt/prompt";
 import { containerName, isContainer, isTarget } from "../rules/rules";
+import { parseSemver } from "../versions/versions";
 import { newestContainer, nextContainerVersion, open } from "./flow.utils";
 
 // gith create -b <branch> | -r [version] | -h [version]
@@ -180,4 +186,78 @@ async function mergePick(): Promise<void> {
   );
   if (target === undefined) return;
   await mergeInto(target, source);
+}
+
+// Makes package.json carry the branch version. Only a package.json can be set here; a project
+// without one is bumped by hand.
+function alignVersion(version: string): void {
+  if (!existsSync("package.json")) return;
+  const current = parsePackageVersion(readFileSync("package.json", "utf8"));
+  if (current === version) return;
+  if (isDryRun()) {
+    console.log(
+      `> npm version ${version} --no-git-tag-version --ignore-scripts`,
+    );
+  } else {
+    execSync(`npm version ${version} --no-git-tag-version --ignore-scripts`, {
+      stdio: "inherit",
+    });
+  }
+  gitArgs(["add", "--", "package.json"]);
+  gitArgs(["commit", "-m", version, "--", "package.json"]);
+}
+
+// Adds the release's changelog entry as its own commit, unless the file already has it.
+function addChangelogEntry(version: string): void {
+  if (!existsSync("package.json")) return;
+  const file = "CHANGELOG.md";
+  if (
+    existsSync(file) &&
+    readFileSync(file, "utf8").includes(`## ${version} - `)
+  )
+    return;
+  changelog(new Map());
+}
+
+// gith finish --current-release | --current-hotfix: releases the newest release/* or hotfix/*.
+// Makes its version match the branch name, adds its changelog entry, merges it into main, tags it,
+// merges main into develop, and asks before deleting the branch.
+export async function finish(flags: Flags): Promise<void> {
+  const kind = onlyOne(flags, ["current-release", "current-hotfix"]);
+  if (!kind || flags.size > 1)
+    throw new Error("usage: gith finish --current-release | --current-hotfix");
+  const containerKind = kind === "current-release" ? "release" : "hotfix";
+  const branch = newestContainer(containerKind);
+  const version = branch.slice(containerKind.length + 1);
+  if (parseSemver(version) === undefined)
+    throw new Error(`'${branch}' is not named with a version (X.Y.Z).`);
+  assertCleanTree();
+
+  gitArgs(["switch", "--", branch]);
+  gitArgs(["pull", "--ff-only", "origin", branch]);
+  alignVersion(version);
+  addChangelogEntry(version);
+
+  gitArgs(["switch", "--", "main"]);
+  gitArgs(["pull", "--ff-only", "origin", "main"]);
+  try {
+    gitArgs(["merge", "--no-ff", branch, "-m", `Merge '${branch}' into main`]);
+  } catch {
+    gitArgs(["merge", "--abort"]);
+    throw new Error(
+      `merging '${branch}' into main conflicts; resolve it by hand, then retry.`,
+    );
+  }
+  gitArgs(["tag", "-a", `v${version}`, "-m", `v${version}`]);
+  gitArgs(["push", "origin", "main"]);
+  gitArgs(["push", "origin", `v${version}`]);
+
+  if (hasOnOrigin("develop")) {
+    gitArgs(["switch", "--", "develop"]);
+    gitArgs(["pull", "--ff-only", "origin", "develop"]);
+    gitArgs(["merge", "--no-edit", "main"]);
+    gitArgs(["push", "origin", "develop"]);
+  }
+  gitArgs(["switch", "--", "main"]);
+  await deleteMergedBranch(branch);
 }

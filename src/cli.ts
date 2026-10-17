@@ -3,7 +3,7 @@ import { onlyOne, parseFlags } from "./components/args/args";
 import { changelog } from "./components/changelog/changelog";
 import { doctor } from "./components/doctor/doctor";
 import { find } from "./components/find/find";
-import { create, merge } from "./components/flow/flow";
+import { create, finish, merge } from "./components/flow/flow";
 import { isDryRun, setDryRun, setVerbose } from "./components/git/git";
 import { save, squash, undo, update } from "./components/history/history";
 import { list } from "./components/list/list";
@@ -35,6 +35,7 @@ Start and finish work
   gith switch -commit <sha>          detach HEAD at a commit, to look at it (tracked files must be clean)
   gith switch --release | --hotfix   switch to the newest release/* or hotfix/* (local or origin); -r <v> / -h <v> for one version
   gith update                        merge origin/develop into this work branch
+  gith finish --current-release | --current-hotfix  release the newest release/* or hotfix/*: version, changelog, merge to main, tag, back to develop
   gith merge                         pick the branch to merge, then the target (develop, release/*, hotfix/*)
   gith merge [-r <v> | -h <v>]       merge this branch into develop, release/<v> or hotfix/<v>
   gith merge --current-release       merge this branch into the newest release (local or origin)
@@ -111,6 +112,9 @@ try {
   switch (command) {
     case "create":
       create(parseFlags(rest));
+      break;
+    case "finish":
+      await finish(parseFlags(rest));
       break;
     case "merge":
       await merge(parseFlags(rest));

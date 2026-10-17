@@ -229,3 +229,67 @@ describe("merge deletes the merged work branch, after a question", () => {
     }
   }, 60_000);
 });
+
+describe("finish --current-release", () => {
+  const CLI = path.resolve(import.meta.dir, "../../cli.ts");
+
+  function git(cwd: string, args: string[]) {
+    return spawnSync("git", args, { cwd, encoding: "utf8" });
+  }
+
+  function gith(cwd: string, args: string[]) {
+    return spawnSync(process.execPath, [CLI, ...args], {
+      cwd,
+      encoding: "utf8",
+    });
+  }
+
+  test("merges the newest release into main, tags it, merges main into develop, and removes the branch", () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "gith-finish-"));
+    try {
+      const repo = path.join(tmp, "repo");
+      fs.mkdirSync(repo);
+      git(tmp, ["init", "--bare", path.join(tmp, "remote.git")]);
+      git(repo, ["init", "-b", "main"]);
+      git(repo, ["config", "user.email", "test@example.com"]);
+      git(repo, ["config", "user.name", "Test"]);
+      fs.writeFileSync(path.join(repo, "a.txt"), "a");
+      git(repo, ["add", "."]);
+      git(repo, ["commit", "-m", "initial"]);
+      git(repo, ["remote", "add", "origin", "../remote.git"]);
+      git(repo, ["push", "-u", "origin", "main"]);
+      git(repo, ["branch", "develop"]);
+      git(repo, ["push", "-u", "origin", "develop"]);
+      git(repo, ["branch", "release/1.0.0", "develop"]);
+      git(repo, ["push", "-u", "origin", "release/1.0.0"]);
+      git(repo, ["switch", "release/1.0.0"]);
+      fs.writeFileSync(path.join(repo, "fix.txt"), "fix");
+      git(repo, ["add", "."]);
+      git(repo, ["commit", "-m", "fix: thing"]);
+      git(repo, ["push", "origin", "release/1.0.0"]);
+      git(repo, ["switch", "main"]);
+
+      expect(gith(repo, ["finish"]).status).toBe(1);
+      const done = gith(repo, ["finish", "--current-release", "--yes"]);
+      expect(done.status).toBe(0);
+      expect(git(repo, ["show", "main:fix.txt"]).status).toBe(0);
+      expect(
+        git(repo, ["ls-remote", "--tags", "origin", "v1.0.0"]).stdout,
+      ).toContain("v1.0.0");
+      expect(
+        git(repo, [
+          "ls-remote",
+          "--heads",
+          "origin",
+          "release/1.0.0",
+        ]).stdout.trim(),
+      ).toBe("");
+      expect(
+        git(repo, ["branch", "--list", "release/1.0.0"]).stdout.trim(),
+      ).toBe("");
+      expect(git(repo, ["show", "develop:fix.txt"]).status).toBe(0);
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  }, 60_000);
+});
