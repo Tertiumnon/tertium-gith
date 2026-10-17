@@ -1,12 +1,17 @@
 # gith
 
-Git helper: the branch flow from [git-convention](https://github.com/Tertiumnon/git-convention) (goal-named work branches, `release/*` and `hotfix/*` containers, merges that sync both sides with origin), plus everyday git commands: switch, remove, sync, clean and a pre-commit hook setup. No dependencies beyond git and [Bun](https://bun.com).
+Git helper: the branch flow from [git-convention](https://github.com/Tertiumnon/git-convention) (goal-named work branches, `release/*` and `hotfix/*` containers, merges that sync both sides with origin), plus everyday git commands: switch, remove, list, sync, clean, reset and a pre-commit hook setup. No dependencies beyond git and [Bun](https://bun.com).
 
 > **Very early state (0.1.0).** Commands and flags may change without notice, and the tool has only been run against throwaway test repositories. Check the result with `git log` and `git status` before you push.
+
+## Install
+
+`gith` runs on [Bun](https://bun.com) and needs git on the PATH. It is not on npm yet. From a clone of this repository, run `bun link` to put `gith` on your PATH.
 
 ## Usage
 
 ```bash
+# Branch flow
 gith create -b login-redirect       # work branch from develop, named by its goal; stays on the current branch
 gith create -r 1.2.0                # release/1.2.0 from develop
 gith create -h 1.2.1                # hotfix/1.2.1 from main
@@ -18,29 +23,30 @@ gith merge -h 1.2.1                 # this branch into hotfix/1.2.1
 gith release --patch                # npm version patch, published through main
 gith release --minor                # npm version minor, from develop into main
 gith release --major                # npm version major, from develop into main
-gith help                           # full usage
 
+# Everyday git
 gith switch -b login-redirect       # switch to the branch, creating it from develop if it is missing
 gith remove -b login-redirect       # delete a merged local branch (rm is an alias)
 gith remove -b login-redirect --remote   # also delete it on origin
 gith remove -b login-redirect --both     # delete locally, then on origin
 gith remove -b                      # list local branches and pick which to delete
-gith remove -b --remote              # list origin branches and pick
-gith remove -b --both                # list branches that exist locally and on origin, pick
-gith sync                           # fetch all remotes and tags, prune stale refs
+gith remove -b --remote             # list origin branches and pick
+gith remove -b --both               # list branches that exist locally and on origin, and pick
 gith list --tags                    # tags with a LOCAL and ORIGIN column
+gith sync                           # fetch all remotes and tags, prune stale refs
 gith clean                          # remove untracked files and directories
 gith reset                          # discard uncommitted changes, then clean
-gith setup --hooks [--force]         # write .githooks/pre-commit, set core.hooksPath
+gith setup --hooks [--force]        # write .githooks/pre-commit, set core.hooksPath
+gith help                           # full usage
 ```
 
 The dashes decide how a flag takes its value:
 - `-r <version>`, `-release <version>`, `-h <version>`, `-hotfix <version>`: an explicit version.
 - `--release`, `--hotfix`: no value; the version is worked out from the tags.
-- `-b <name>`, `-branch <name>`, `--branch <name>`: the branch name.
+- `-b <name>`, `-branch <name>`, `--branch <name>`: the branch name. Without a name, `remove -b` opens the picker.
 - `--patch` or `-patch`, and likewise `--minor` and `--major`.
 
-`--remote`, `--both`, `--hooks` and `--force` also work with one dash, as in `-remote` or `-force`.
+`--remote`, `--both`, `--hooks`, `--force` and `--tags` also work with one dash, as in `-remote` or `-force`.
 
 Each command takes one of its flags; giving two is an error.
 
