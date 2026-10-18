@@ -192,10 +192,12 @@ describe("maintenance", () => {
         const result = gith(repo, ["create", "-b", "login", "--dry-run"]);
         expect(result.status).toBe(0);
         expect(result.stdout).toContain("dry run: nothing below is changed.");
-        expect(result.stdout).toContain("> git branch login origin/develop");
-        expect(result.stdout).toContain("> git push -u origin login");
-        expect(branchExists(repo, "login")).toBe(false);
-        expect(onOrigin(repo, "login")).toBe(false);
+        expect(result.stdout).toContain(
+          "> git branch develop--login origin/develop",
+        );
+        expect(result.stdout).toContain("> git push -u origin develop--login");
+        expect(branchExists(repo, "develop--login")).toBe(false);
+        expect(onOrigin(repo, "develop--login")).toBe(false);
 
         fs.writeFileSync(path.join(repo, "untracked.txt"), "x");
         const clean = gith(repo, ["clean", "--dry-run"]);

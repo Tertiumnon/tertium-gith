@@ -1,6 +1,6 @@
 import { onlyOne, parseLimit } from "../args/args";
 import type { Flags } from "../args/args.types";
-import { createBranch } from "../flow/flow";
+import { createBranch, workBranchName } from "../flow/flow";
 import { newestContainer } from "../flow/flow.utils";
 import {
   assertBranchName,
@@ -58,10 +58,15 @@ export async function switchBranch(flags: Flags): Promise<void> {
     return;
   }
   const branch = requireBranch(flags, "switch");
-  if (!hasLocal(branch) && !hasOnOrigin(branch)) {
-    createBranch(branch, isDetached() ? "HEAD" : undefined);
+  const from = isDetached() ? "HEAD" : undefined;
+  const exists = (name: string) => hasLocal(name) || hasOnOrigin(name);
+  let name = branch;
+  if (!exists(branch)) {
+    // A goal already made under its prefixed name is switched to, not created again.
+    const made = workBranchName(branch, from);
+    name = exists(made) ? made : createBranch(branch, from);
   }
-  gitArgs(["switch", "--", branch]);
+  gitArgs(["switch", "--", name]);
 }
 
 // Branches that can be offered for removal. Containers are never offered, and the

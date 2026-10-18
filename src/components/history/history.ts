@@ -43,14 +43,18 @@ export function undo(flags: Flags): void {
 
 // gith save: with commits of its own, folds the staged changes into the last commit and keeps its
 // message (-m replaces it). Without them, creates a new commit, asking for its message unless -m is
-// given. It pushes only when origin already has this branch and its copy differs from the new
-// commit: a plain push when the commit moves forward, or --force-with-lease after rewriting a pushed
-// commit (asks first).
+// given. --all stages every change first (git add -A). It pushes only when origin already has this
+// branch and its copy differs from the new commit: a plain push when the commit moves forward, or
+// --force-with-lease after rewriting a pushed commit (asks first).
 export async function save(flags: Flags): Promise<void> {
   const message = flags.get("message");
-  const extra = [...flags.keys()].filter((key) => key !== "message");
-  if (extra.length > 0) throw new Error("usage: gith save [-m <message>]");
+  const extra = [...flags.keys()].filter(
+    (key) => key !== "message" && key !== "all",
+  );
+  if (extra.length > 0)
+    throw new Error("usage: gith save [-m <message>] [--all]");
   const branch = currentBranch();
+  if (flags.has("all")) gitArgs(["add", "-A"]);
   if (captureArgs(["diff", "--cached", "--name-only"]) === "") {
     throw new Error(
       "nothing staged; stage the changes to add to the last commit.",
