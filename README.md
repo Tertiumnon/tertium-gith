@@ -26,6 +26,8 @@ gith --version
 
 From a clone of this repository, build the CLI and link it: `bun install`, `bun run build`, `npm link`.
 
+`bun install` also points git at `.githooks/`, so each commit runs `bun run typecheck`, `bun run format:check` and `bun run lint` first, and a failing check stops it. `bun run format` rewrites files to the formatter's style.
+
 ## Usage
 
 ```bash
