@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.1 - 2026-10-18
+
+- chore(hooks): run typecheck, format check and lint before each commit
+- feat(flow): name work branches develop--<goal>, merge --main, merge -r/-h picker
+- feat: switch -r/-h to newest container, save --all stages first
+
 ## 0.3.0 - 2026-10-17
 
 - feat(merge): --develop merges this branch into develop
