@@ -1,0 +1,6 @@
+#!/bin/sh
+# Runs before each commit. Any failing check stops the commit.
+set -e
+bun run typecheck
+bun run format:check
+bun run lint
