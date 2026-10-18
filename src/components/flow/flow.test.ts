@@ -53,7 +53,7 @@ describe("create", () => {
         const repo = fixture(tmp);
         expect(gith(repo, ["create", "-b", "login"]).status).toBe(0);
         expect(current(repo)).toBe("main");
-        expect(onOrigin(repo, "login")).toBe(true);
+        expect(onOrigin(repo, "develop--login")).toBe(true);
 
         expect(gith(repo, ["create", "-r", "1.0.0"]).status).toBe(0);
         expect(current(repo)).toBe("main");
@@ -84,14 +84,14 @@ describe("create", () => {
       try {
         const repo = fixture(tmp);
         expect(gith(repo, ["switch", "-b", "fresh"]).status).toBe(0);
-        expect(current(repo)).toBe("fresh");
-        expect(onOrigin(repo, "fresh")).toBe(true);
+        expect(current(repo)).toBe("develop--fresh");
+        expect(onOrigin(repo, "develop--fresh")).toBe(true);
 
         expect(gith(repo, ["switch", "-b", "main"]).status).toBe(0);
         expect(current(repo)).toBe("main");
 
         expect(gith(repo, ["switch", "-b", "fresh"]).status).toBe(0);
-        expect(current(repo)).toBe("fresh");
+        expect(current(repo)).toBe("develop--fresh");
       } finally {
         fs.rmSync(tmp, { recursive: true, force: true });
       }

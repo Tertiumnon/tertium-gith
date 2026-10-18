@@ -4,9 +4,9 @@ import type { ContainerKind } from "../rules/rules.types";
 import { compare, nextVersion, parseSemver } from "../versions/versions";
 import type { Semver } from "../versions/versions.types";
 
-// The release/* or hotfix/* branch with the highest version, among the local branches and the
-// ones on origin. Versions compare as numbers, so 1.10.0 is newer than 1.9.0.
-export function newestContainer(kind: ContainerKind): string {
+// Every release/* or hotfix/* branch with a version, among the local branches and the ones on
+// origin, newest first. Versions compare as numbers, so 1.10.0 is newer than 1.9.0.
+export function containers(kind: ContainerKind): string[] {
   const prefix = `${kind}/`;
   const local = captureArgs([
     "for-each-ref",
@@ -19,15 +19,22 @@ export function newestContainer(kind: ContainerKind): string {
   const candidates = new Set(
     [...local, ...origin].filter((name) => name.startsWith(prefix)),
   );
-  let newest: { name: string; version: Semver } | undefined;
+  const versioned: { name: string; version: Semver }[] = [];
   for (const name of candidates) {
     const version = parseSemver(name.slice(prefix.length));
-    if (version && (!newest || compare(version, newest.version) > 0))
-      newest = { name, version };
+    if (version) versioned.push({ name, version });
   }
+  return versioned
+    .sort((a, b) => compare(b.version, a.version))
+    .map((item) => item.name);
+}
+
+// The newest release/* or hotfix/* branch (see containers).
+export function newestContainer(kind: ContainerKind): string {
+  const [newest] = containers(kind);
   if (!newest)
     throw new Error(`no ${kind} branch exists, locally or on origin.`);
-  return newest.name;
+  return newest;
 }
 
 // Next version after the latest tag (local or origin): release bumps the minor,

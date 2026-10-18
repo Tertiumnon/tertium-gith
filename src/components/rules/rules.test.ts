@@ -16,11 +16,12 @@ describe("containers", () => {
 });
 
 describe("targets", () => {
-  test("only develop, release/* and hotfix/* are valid targets", () => {
+  test("only main, develop, release/* and hotfix/* are valid targets", () => {
+    expect(isTarget("main")).toBe(true);
     expect(isTarget("develop")).toBe(true);
     expect(isTarget("release/1.2.0")).toBe(true);
     expect(isTarget("hotfix/1.2.1")).toBe(true);
-    expect(isTarget("main")).toBe(false);
+    expect(isTarget("login")).toBe(false);
     expect(isTarget("release")).toBe(false);
   });
 });

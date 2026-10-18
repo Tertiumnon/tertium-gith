@@ -26,19 +26,20 @@ import { versionText } from "./components/version/version";
 const USAGE = `gith - git helper: branch flow and everyday git commands
 
 Start and finish work
-  gith create -b <branch>            work branch from develop, named by its goal (no switch)
+  gith create -b <branch>            work branch develop--<branch> from develop (no switch)
   gith create -r <version>           release/<version> from develop
   gith create -h <version>           hotfix/<version> from main
   gith create --release | --hotfix   version from the latest tag: minor for release, patch for hotfix
   gith switch                        list local and origin branches, and switch to the one picked
-  gith switch -b <branch>            switch to a branch, creating it from develop if missing (on a detached HEAD: from that commit)
+  gith switch -b <branch>            switch to a branch, creating develop--<branch> from develop if missing (on a detached HEAD: <branch> from that commit)
   gith switch -commit <sha>          detach HEAD at a commit, to look at it (tracked files must be clean)
   gith switch --release | --hotfix   switch to the newest release/* or hotfix/* (local or origin); -r / -h do the same; -r <v> / -h <v> for one version
   gith update                        merge origin/develop into this work branch
   gith finish --current-release | --current-hotfix  release the newest release/* or hotfix/*: version, changelog, merge to main, tag, back to develop
   gith merge --develop               merge this branch into develop
-  gith merge                         pick the branch to merge, then the target (develop, release/*, hotfix/*)
-  gith merge [-r <v> | -h <v>]       merge this branch into develop, release/<v> or hotfix/<v>
+  gith merge --main                  merge this branch into main
+  gith merge                         pick the branch to merge, then the target (main, develop, release/*, hotfix/*)
+  gith merge [-r <v> | -h <v>]       merge this branch into release/<v> or hotfix/<v>; without a version, the only one or a pick from the list
   gith merge --current-release       merge this branch into the newest release (local or origin)
   gith merge --current-hotfix        merge this branch into the newest hotfix (local or origin)
   gith release --patch | --minor | --major   bump the version and publish

@@ -17,8 +17,14 @@ import {
 } from "../git/git";
 import { confirm, select } from "../prompt/prompt";
 import { containerName, isContainer, isTarget } from "../rules/rules";
+import type { ContainerKind } from "../rules/rules.types";
 import { parseSemver } from "../versions/versions";
-import { newestContainer, nextContainerVersion, open } from "./flow.utils";
+import {
+  containers,
+  newestContainer,
+  nextContainerVersion,
+  open,
+} from "./flow.utils";
 
 // gith create -b <branch> | -r [version] | -h [version]
 // Creates the branch and pushes it, but never switches: the current branch stays checked out.
@@ -38,11 +44,14 @@ export function create(flags: Flags): void {
 }
 
 // gith merge [-r <version> | -h <version>]: merges this branch into develop by default.
-// Without flags, asks which branch to merge and which branch to merge it into.
+// gith merge --main: merges this branch into main. Without flags, asks which branch to merge and
+// which branch to merge it into.
+// -r and -h without a version pick among the release or hotfix branches; one is used directly.
 export async function merge(flags: Flags): Promise<void> {
   if (flags.size === 0) return mergePick();
   const kind = onlyOne(flags, [
     "develop",
+    "main",
     "release",
     "hotfix",
     "current-release",
@@ -50,34 +59,61 @@ export async function merge(flags: Flags): Promise<void> {
   ]);
   let target = "develop";
   if (kind === "develop") target = "develop";
+  else if (kind === "main") target = "main";
   else if (kind === "current-release") target = newestContainer("release");
   else if (kind === "current-hotfix") target = newestContainer("hotfix");
   else if (kind) {
     const version = flags.get(kind) ?? "";
-    if (!version) {
-      throw new Error(
-        `usage: gith merge -${kind === "release" ? "r" : "h"} <version>`,
-      );
-    }
-    target = containerName(kind, version);
+    const picked =
+      version === "" ? await pickContainer(kind) : containerName(kind, version);
+    if (picked === undefined) return;
+    target = picked;
   }
   await mergeInto(target);
 }
 
-// Creates a work branch named by its goal, from origin/develop, and pushes it with upstream
-// tracking. Leaves the current branch checked out.
+// The release or hotfix to merge into when no version is given: the only one, or the picked one.
+// Undefined when the picker is cancelled.
+async function pickContainer(kind: ContainerKind): Promise<string | undefined> {
+  const names = containers(kind);
+  if (names.length === 0)
+    throw new Error(`no ${kind} branch exists, locally or on origin.`);
+  if (names.length === 1) return names[0];
+  if (!process.stdin.isTTY) {
+    throw new Error(
+      `several ${kind} branches exist; pass -${kind === "release" ? "r" : "h"} <version> instead; the list needs a terminal`,
+    );
+  }
+  const [picked] = await select(
+    `Merge into which ${kind}?`,
+    names.map((name) => ({ name, label: name })),
+    false,
+  );
+  return picked;
+}
+
+// The name of a work branch: develop--<goal> when it starts from develop, so its source shows in
+// the name. From a commit (a detached HEAD) there is no source branch, so the goal is the name.
+export function workBranchName(goal: string, from?: string): string {
+  return from === undefined ? `develop--${goal}` : goal;
+}
+
+// Creates a work branch named by workBranchName, from origin/develop, and pushes it with upstream
+// tracking. Leaves the current branch checked out. Returns the name it created.
 // `from` is the commit to start from; by default the latest origin/develop.
-export function createBranch(goal: string, from?: string): void {
+export function createBranch(goal: string, from?: string): string {
   if (isContainer(goal))
     throw new Error(`'${goal}' is a container name; pick a goal.`);
-  if (hasOnOrigin(goal)) throw new Error(`'${goal}' already exists on origin.`);
+  const name = workBranchName(goal, from);
+  if (hasOnOrigin(name)) throw new Error(`'${name}' already exists on origin.`);
   if (from === undefined) {
     gitArgs(["fetch", "origin", "develop"]);
-    gitArgs(["branch", goal, "origin/develop"]);
+    gitArgs(["branch", name, "origin/develop"]);
   } else {
-    gitArgs(["branch", goal, from]);
+    gitArgs(["branch", name, from]);
   }
-  gitArgs(["push", "-u", "origin", goal]);
+  gitArgs(["push", "-u", "origin", name]);
+  return name;
 }
 
 // Merges the current work branch into the target branch.
