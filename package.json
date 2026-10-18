@@ -24,7 +24,7 @@
     "release:major": "node bin/gith.js release --major",
     "version": "bun run build && node bin/gith.js changelog"
   },
-  "license": "ISC",
+  "license": "MIT",
   "author": "Vitalii Balabanov",
   "repository": {
     "type": "git",
