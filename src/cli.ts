@@ -33,7 +33,7 @@ Start and finish work
   gith switch                        list local and origin branches, and switch to the one picked
   gith switch -b <branch>            switch to a branch, creating it from develop if missing (on a detached HEAD: from that commit)
   gith switch -commit <sha>          detach HEAD at a commit, to look at it (tracked files must be clean)
-  gith switch --release | --hotfix   switch to the newest release/* or hotfix/* (local or origin); -r <v> / -h <v> for one version
+  gith switch --release | --hotfix   switch to the newest release/* or hotfix/* (local or origin); -r / -h do the same; -r <v> / -h <v> for one version
   gith update                        merge origin/develop into this work branch
   gith finish --current-release | --current-hotfix  release the newest release/* or hotfix/*: version, changelog, merge to main, tag, back to develop
   gith merge --develop               merge this branch into develop
@@ -45,7 +45,7 @@ Start and finish work
 
 Fix history
   gith undo                          undo the last commit, keep its changes staged (not if pushed)
-  gith save [-m <msg>]               fold staged changes into the last commit, or commit them if the branch has none yet (asks for a message); pushes if origin differs (asks before a force-push)
+  gith save [-m <msg>] [--all]       fold staged changes (--all stages every change first) into the last commit, or commit them if the branch has none yet (asks for a message); pushes if origin differs (asks before a force-push)
   gith squash -limit <n> [-m <msg>]  combine the last n commits into one (keeps the oldest message)
 
 Save and reset work

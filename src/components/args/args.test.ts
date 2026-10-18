@@ -46,8 +46,10 @@ describe("auto flags: -x <value> is explicit, --x alone picks automatically", ()
     expect(() => parseFlags(["--release", "1.0"])).toThrow(
       "--release takes no value. For an explicit value use -release <value>.",
     );
-    expect(() => parseFlags(["-r"])).toThrow("-r needs a value");
-    expect(() => parseFlags(["-r", "--patch"])).toThrow("-r needs a value");
+    expect(() => parseFlags(["-b"])).toThrow("-b needs a value");
+    expect(parseFlags(["-r"]).get("release")).toBe("");
+    expect(parseFlags(["-r", "--patch"]).get("release")).toBe("");
+    expect(parseFlags(["-h", "--patch"]).get("hotfix")).toBe("");
   });
 });
 

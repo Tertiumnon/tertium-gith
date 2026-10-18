@@ -55,7 +55,7 @@ gith release --major                # npm version major, from develop into main
 
 # Fix history
 gith undo                           # undo the last commit, keep its changes staged (not if pushed)
-gith save [-m "msg"]                # fold staged changes into the last commit, or make a new commit with them if the branch has none yet (asks for a message); pushes if origin differs
+gith save [-m "msg"] [--all]         # --all stages every change first; fold staged changes into the last commit, or make a new commit with them if the branch has none yet (asks for a message); pushes if origin differs
 gith squash -limit 3 [-m "msg"]     # combine the last 3 commits into one (keeps the oldest message)
 
 # Save and reset work
