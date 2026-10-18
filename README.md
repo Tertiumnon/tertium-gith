@@ -1,4 +1,4 @@
-# gith
+# @tertium/gith
 
 ```
           o
