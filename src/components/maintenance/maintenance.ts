@@ -5,10 +5,12 @@ import { newestContainer } from "../flow/flow.utils";
 import {
   assertBranchName,
   assertCleanTree,
+  capture,
   captureArgs,
   gitArgs,
   hasLocal,
   hasOnOrigin,
+  isAncestor,
   isDetached,
 } from "../git/git";
 import { confirm, select } from "../prompt/prompt";
@@ -201,6 +203,48 @@ export async function remove(flags: Flags): Promise<void> {
 export function sync(flags: Flags): void {
   noFlags(flags, "sync");
   gitArgs(["fetch", "--all", "--tags", "--prune"]);
+}
+
+// gith sync develop:develop (or gith sync develop): two-way sync of one branch with origin.
+// Behind origin: fast-forward, like git fetch origin develop:develop. Ahead: push. Diverged or
+// the same name on one side only: stop, nothing is forced.
+export function syncBranch(args: string[]): void {
+  const [spec = ""] = args;
+  const [name = "", other = name] = spec.split(":");
+  if (args.length !== 1 || other !== name || name === "")
+    throw new Error(
+      "usage: gith sync <branch>:<branch>, the same name on both sides.",
+    );
+  assertBranchName(name);
+  const local = hasLocal(name);
+  const remote = hasOnOrigin(name);
+  if (!local && !remote)
+    throw new Error(`'${name}' does not exist, locally or on origin.`);
+  if (!remote) {
+    gitArgs(["push", "origin", `${name}:${name}`]);
+    return;
+  }
+  gitArgs(["fetch", "origin", name]);
+  if (!local) {
+    gitArgs(["fetch", "origin", `${name}:${name}`]);
+    return;
+  }
+  const here = capture(`rev-parse refs/heads/${name}`);
+  const there = capture(`rev-parse refs/remotes/origin/${name}`);
+  if (here === there) {
+    console.log(`'${name}' is already in sync with origin.`);
+  } else if (isAncestor(there, here)) {
+    gitArgs(["push", "origin", `${name}:${name}`]);
+  } else if (!isAncestor(here, there)) {
+    throw new Error(
+      `'${name}' has diverged from origin/${name}; merge or rebase one side first.`,
+    );
+  } else if (currentBranch() === name) {
+    // git fetch refuses to update the checked-out branch, so it is fast-forwarded by merge.
+    gitArgs(["merge", "--ff-only", `origin/${name}`]);
+  } else {
+    gitArgs(["fetch", "origin", `${name}:${name}`]);
+  }
 }
 
 // gith reset: discards every uncommitted change on this branch, and removes untracked files and

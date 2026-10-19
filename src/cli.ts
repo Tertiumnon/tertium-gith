@@ -13,6 +13,7 @@ import {
   reset,
   switchBranch,
   sync,
+  syncBranch,
 } from "./components/maintenance/maintenance";
 import { open } from "./components/open/open";
 import { setAssumeYes } from "./components/prompt/prompt";
@@ -82,6 +83,7 @@ Look at the repo
 
 Remote and health
   gith sync                          fetch all remotes and tags, prune stale refs
+  gith sync develop:develop          two-way sync of one branch with origin: fetch it when behind, push it when ahead, stop when diverged
   gith open                          open origin in the browser
   gith doctor                        check the repo is ready for the branch flow (exit 1 on failures)
   gith changelog [--dry-run]         add an entry for package.json's version to CHANGELOG.md (commits since the last tag)
@@ -129,7 +131,8 @@ try {
       await remove(parseFlags(rest));
       break;
     case "sync":
-      sync(parseFlags(rest));
+      if (rest[0] !== undefined && !rest[0].startsWith("-")) syncBranch(rest);
+      else sync(parseFlags(rest));
       break;
     case "clean":
       await clean(parseFlags(rest));
