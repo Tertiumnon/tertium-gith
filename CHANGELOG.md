@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.2 - 2026-10-19
+
+- feat(sync): two-way sync of one branch with origin
+- docs: add support link
+- docs: remove project.json, replaced by project.yml
+- docs: project attributes in project.yml
+- docs: add project.json attributes
+- docs: use the scoped package name as the project title
+- docs: license under MIT (was ISC)
+
 ## 0.3.1 - 2026-10-18
 
 - chore(hooks): run typecheck, format check and lint before each commit
