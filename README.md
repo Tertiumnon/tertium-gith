@@ -101,6 +101,7 @@ gith stat --last-week -limit 50     # the same for last week, looking at no more
 
 # Remote and health
 gith sync                           # fetch all remotes and tags, prune stale refs
+gith sync develop:develop           # two-way sync of one branch with origin
 gith open                           # open origin in the browser
 gith doctor                         # check the repo is ready for the branch flow
 gith changelog --dry-run            # preview the CHANGELOG.md entry for package.json's version
@@ -177,6 +178,7 @@ Commands that choose between flags (for example `create -b`, `-r` and `-h`, or `
 - **`open`** opens origin in the browser, turning an `ssh` or `https` remote into a web address. GitHub and GitLab style addresses work.
 - **`doctor`** checks git, a repository, origin, its reachability, `main` and `develop` on origin, and a clean working tree. It exits 1 if a required check fails, and only warns about the tree.
 - **`sync`** runs `git fetch --all --tags --prune`.
+- **`sync <branch>:<branch>`** (for example `sync develop:develop`) syncs one branch with origin in both directions. If origin is ahead, it fetches the branch like `git fetch origin develop:develop`; if local is ahead, it pushes it; if it is the same, it says so. A checked-out branch is fast-forwarded with `merge --ff-only`. Diverged branches stop with an error, and nothing is forced. A branch missing on one side is created there. `sync develop` alone works too.
 - **`tree`** lists the working trees of the repository (`git worktree list`): each path, its branch or `(detached)`, and its short HEAD. The current one is marked `*`, and bare, locked or prunable trees are noted. `-limit <n>` caps the rows; all are shown by default.
 - **`list --tags`** shows every tag once, with yes/no columns for local and origin, so you can see which tags are unpushed or missing locally. Version tags are listed newest first, and only the first 5 are shown by default. `-limit <n>` (or `-l <n>`) changes that and adds a note when rows are left out.
 - **`list --commits`** shows the newest commits on the current branch, one per line: short hash, date, author and subject. With `--graph` it draws the branch graph instead. It shows 5 by default; `-l <n>` (or `-limit <n>`) changes that and must be a positive whole number. `-limit` only applies to listings. `gith list` with no flag prints usage.

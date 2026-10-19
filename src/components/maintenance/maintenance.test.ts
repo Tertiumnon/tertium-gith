@@ -681,3 +681,93 @@ describe("switch --release and --hotfix", () => {
     }
   }, 60_000);
 });
+
+describe("sync <branch>:<branch>", () => {
+  const CLI = path.resolve(import.meta.dir, "../../cli.ts");
+
+  function git(cwd: string, args: string[]) {
+    return spawnSync("git", args, { cwd, encoding: "utf8" });
+  }
+
+  function gith(cwd: string, args: string[]) {
+    return spawnSync(process.execPath, [CLI, ...args], {
+      cwd,
+      encoding: "utf8",
+    });
+  }
+
+  function sha(cwd: string, ref: string): string {
+    return git(cwd, ["rev-parse", ref]).stdout.trim();
+  }
+
+  function remoteSha(cwd: string, branch: string): string {
+    return (
+      git(cwd, ["ls-remote", "origin", `refs/heads/${branch}`])
+        .stdout.trim()
+        .split(/\s+/)[0] ?? ""
+    );
+  }
+
+  function commit(cwd: string, file: string): void {
+    fs.writeFileSync(path.join(cwd, file), file);
+    git(cwd, ["add", "."]);
+    git(cwd, ["commit", "-m", file]);
+  }
+
+  test("fast-forwards when behind, pushes when ahead, stops when diverged", () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "gith-sync-"));
+    try {
+      const repo = path.join(tmp, "repo");
+      const other = path.join(tmp, "other");
+      git(tmp, ["init", "--bare", path.join(tmp, "remote.git")]);
+      fs.mkdirSync(repo);
+      git(repo, ["init", "-b", "main"]);
+      git(repo, ["config", "user.email", "test@example.com"]);
+      git(repo, ["config", "user.name", "Test"]);
+      commit(repo, "a.txt");
+      git(repo, ["remote", "add", "origin", "../remote.git"]);
+      git(repo, ["push", "-u", "origin", "main"]);
+      git(repo, ["branch", "develop"]);
+      git(repo, ["push", "-u", "origin", "develop"]);
+
+      // another clone moves origin/develop ahead: the local branch is fast-forwarded
+      git(tmp, ["clone", "remote.git", "other"]);
+      git(other, ["config", "user.email", "test@example.com"]);
+      git(other, ["config", "user.name", "Test"]);
+      git(other, ["checkout", "develop"]);
+      commit(other, "b.txt");
+      git(other, ["push", "origin", "develop"]);
+      expect(gith(repo, ["sync", "develop:develop"]).status).toBe(0);
+      expect(sha(repo, "develop")).toBe(sha(repo, "origin/develop"));
+
+      // local develop ahead: pushed to origin
+      git(repo, ["checkout", "develop"]);
+      commit(repo, "c.txt");
+      expect(gith(repo, ["sync", "develop:develop"]).status).toBe(0);
+      expect(sha(repo, "develop")).toBe(remoteSha(repo, "develop"));
+
+      // checked-out branch behind origin: fast-forwarded by merge
+      git(other, ["fetch", "origin"]);
+      git(other, ["reset", "--hard", "origin/develop"]);
+      commit(other, "d.txt");
+      git(other, ["push", "origin", "develop"]);
+      expect(gith(repo, ["sync", "develop:develop"]).status).toBe(0);
+      expect(sha(repo, "develop")).toBe(sha(repo, "origin/develop"));
+
+      // diverged: refused, nothing moves
+      git(repo, ["checkout", "main"]);
+      git(repo, ["branch", "-f", "develop", "origin/develop~1"]);
+      commit(repo, "x.txt");
+      const local = sha(repo, "develop");
+      git(repo, ["checkout", "develop"]);
+      commit(repo, "e.txt");
+      expect(gith(repo, ["sync", "develop:develop"]).status).toBe(1);
+      expect(sha(repo, "develop")).not.toBe(local);
+
+      // a different name on the other side is refused
+      expect(gith(repo, ["sync", "develop:main"]).status).toBe(1);
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  }, 60_000);
+});
