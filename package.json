@@ -1,6 +1,6 @@
 {
   "name": "@tertium/gith",
-  "version": "0.2.0",
+  "version": "0.3.2",
   "description": "Git helper: branch flow with goal branches, release and hotfix containers, and everyday git commands.",
   "type": "module",
   "bin": {
@@ -15,13 +15,16 @@
     "test": "bun test --no-coverage",
     "lint": "biome check src",
     "lint:fix": "biome check --write src",
+    "format": "biome format --write src",
+    "format:check": "biome format src",
     "typecheck": "tsc --noEmit",
+    "prepare": "git config core.hooksPath .githooks || true",
     "release:patch": "node bin/gith.js release --patch",
     "release:minor": "node bin/gith.js release --minor",
     "release:major": "node bin/gith.js release --major",
     "version": "bun run build && node bin/gith.js changelog"
   },
-  "license": "ISC",
+  "license": "MIT",
   "author": "Vitalii Balabanov",
   "repository": {
     "type": "git",

@@ -17,9 +17,14 @@ export function parseFlags(argv: string[]): Flags {
     if (style === "single") {
       if (kind === "switch")
         throw new Error(`${token} is a switch; write --${name}.`);
-      if (!hasNext) throw new Error(`${token} needs a value.`);
-      flags.set(name, next);
-      i++;
+      if (hasNext) {
+        flags.set(name, next);
+        i++;
+      } else if (kind === "optional") {
+        flags.set(name, "");
+      } else {
+        throw new Error(`${token} needs a value.`);
+      }
     } else if (kind === "switch") {
       flags.set(name, "true");
     } else if (kind === "value") {

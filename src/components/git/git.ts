@@ -57,6 +57,16 @@ export function hasOnOrigin(branch: string): boolean {
   return capture(`ls-remote --heads origin ${branch}`) !== "";
 }
 
+// True when commit `ancestor` is reachable from commit `descendant` (or they are the same).
+export function isAncestor(ancestor: string, descendant: string): boolean {
+  try {
+    captureArgs(["merge-base", "--is-ancestor", ancestor, descendant]);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // Tags from local and origin. Remote lines look like `<sha>\trefs/tags/v1.2.3^{}`.
 export function listTags(): string[] {
   const local = capture("tag --list").split("\n");

@@ -4,4 +4,4 @@
 export const CONTAINER = /^(develop|main|release\/.+|hotfix\/.+)$/;
 
 // Branches a merge can land in.
-export const TARGET = /^(develop|release\/.+|hotfix\/.+)$/;
+export const TARGET = /^(main|develop|release\/.+|hotfix\/.+)$/;

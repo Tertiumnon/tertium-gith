@@ -1,4 +1,4 @@
-# gith
+# @tertium/gith
 
 ```
           o
@@ -11,7 +11,7 @@
        d b
 ```
 
-Git helper: the branch flow from [git-convention](https://github.com/Tertiumnon/git-convention) (goal-named work branches, `release/*` and `hotfix/*` containers, merges that sync both sides with origin), plus everyday git commands: status, switch, update, undo, save, squash, stash, remove, list, tree, sync, clean, reset, open, doctor and stat. Any command takes `--dry-run` to show the git commands it would run. No dependencies beyond git and [Bun](https://bun.com).
+Git helper: the branch flow from [git-convention](https://github.com/Tertiumnon/git-convention) (work branches named develop--<goal>, `release/*` and `hotfix/*` containers, merges that sync both sides with origin), plus everyday git commands: status, switch, update, undo, save, squash, stash, remove, list, tree, sync, clean, reset, open, doctor and stat. Any command takes `--dry-run` to show the git commands it would run. No dependencies beyond git and [Bun](https://bun.com).
 
 > **Very early state (0.1.0).** Commands and flags may change without notice, and the tool has only been run against throwaway test repositories. Check the result with `git log` and `git status` before you push.
 
@@ -26,20 +26,29 @@ gith --version
 
 From a clone of this repository, build the CLI and link it: `bun install`, `bun run build`, `npm link`.
 
+`bun install` also points git at `.githooks/`, so each commit runs `bun run typecheck`, `bun run format:check` and `bun run lint` first, and a failing check stops it. `bun run format` rewrites files to the formatter's style.
+
 ## Usage
 
 ```bash
 # Start and finish work
-gith create -b login-redirect       # work branch from develop, named by its goal; stays on the current branch
+gith create -b login-redirect       # work branch develop--login-redirect from develop; stays on the current branch
 gith create -r 1.2.0                # release/1.2.0 from develop
 gith create -h 1.2.1                # hotfix/1.2.1 from main
 gith create --release               # release, version = minor after the latest tag
 gith create --hotfix                # hotfix, version = patch after the latest tag
-gith switch -b login-redirect       # switch to the branch, creating it from develop if it is missing
+gith switch                         # list local and origin branches, and switch to the one you pick
+gith switch -b login-redirect       # switch to develop--login-redirect, creating it from develop if it is missing
 gith switch -commit 3f2a1b9         # detach HEAD at that commit, to look at old code
+gith switch --release               # switch to the newest release/* (local or origin); -r 1.9.0 for one version
+gith switch --hotfix                # switch to the newest hotfix/* (local or origin); -h 1.2.1 for one version
 gith update                         # merge origin/develop into this work branch
 gith merge                          # this branch into develop
-gith merge -r 1.2.0                 # this branch into release/1.2.0
+gith finish --current-release    # release the newest release/*: version, changelog, merge to main, tag, merge main to develop, then ask before deleting the branch
+gith finish --current-hotfix      # the same for the newest hotfix/*
+gith merge                          # pick the branch to merge, then the target from the list
+gith merge --main                   # this branch into main
+gith merge -r 1.2.0                 # this branch into release/1.2.0 (-r alone: the only release, or pick from the list)
 gith merge -h 1.2.1                 # this branch into hotfix/1.2.1
 gith merge --current-release        # this branch into the newest release/* (local or origin)
 gith merge --current-hotfix         # this branch into the newest hotfix/* (local or origin)
@@ -49,7 +58,7 @@ gith release --major                # npm version major, from develop into main
 
 # Fix history
 gith undo                           # undo the last commit, keep its changes staged (not if pushed)
-gith save [-m "msg"]                # fold staged changes into the last commit, or make a new commit with them if the branch has none yet (asks for a message); pushes if origin differs
+gith save [-m "msg"] [--all]         # --all stages every change first; fold staged changes into the last commit, or make a new commit with them if the branch has none yet (asks for a message); pushes if origin differs
 gith squash -limit 3 [-m "msg"]     # combine the last 3 commits into one (keeps the oldest message)
 
 # Save and reset work
@@ -59,6 +68,7 @@ gith reset                          # discard uncommitted changes, then clean
 gith clean                          # remove untracked files and directories
 
 # Clean up branches (every removal shows what it will remove first)
+gith remove                         # pick branches to delete from the list (here and on origin)
 gith remove -b login-redirect       # delete the branch here and on origin (rm is an alias)
 gith remove -b login-redirect --local    # delete only the local branch
 gith remove -b login-redirect --remote   # delete only the origin branch
@@ -91,6 +101,7 @@ gith stat --last-week -limit 50     # the same for last week, looking at no more
 
 # Remote and health
 gith sync                           # fetch all remotes and tags, prune stale refs
+gith sync develop:develop           # two-way sync of one branch with origin
 gith open                           # open origin in the browser
 gith doctor                         # check the repo is ready for the branch flow
 gith changelog --dry-run            # preview the CHANGELOG.md entry for package.json's version
@@ -117,9 +128,12 @@ One rule applies to every command: **a single dash always takes a value, and a d
 | `-b <name>`, `-branch <name>` | value | `create`, `switch`, `remove` |
 | `--branch` | alone: open the picker | `remove` |
 | `-r <version>`, `-release <version>` | value | `create`, `merge` |
+| `-r` alone | the only release, or a pick from the list | `merge` |
 | `--release` | alone: version from the latest tag | `create` |
+| `--main` | alone: merge into main | `merge` |
 | `--current-release`, `--current-hotfix` | switch: merge into the newest release or hotfix | `merge` |
 | `-h <version>`, `-hotfix <version>` | value | `create`, `merge` |
+| `-h` alone | the only hotfix, or a pick from the list | `merge` |
 | `--hotfix` | alone: version from the latest tag | `create` |
 | `-limit <n>` | value | `squash`: how many commits to combine |
 | `-m <msg>`, `-message <msg>` | value | `squash` |
@@ -142,10 +156,10 @@ Commands that choose between flags (for example `create -b`, `-r` and `-h`, or `
 
 ## Git commands
 
-- **`switch -b`** switches to a branch. If the branch exists neither locally nor on origin, it is created first, the same way as `create -b`, and then checked out.
+- **`switch -b`** switches to a branch. If a branch with that name exists (locally or on origin), it is checked out. Otherwise, if `develop--<name>` exists, that one is checked out. If neither exists, `develop--<name>` is created from `origin/develop`, the same way as `create -b`, and checked out.
 - **`switch -commit <sha>`** detaches HEAD at that commit so you can look at old code. It refuses a commit that does not exist, and it refuses while tracked files have changes (untracked files do not block it). It lists the files that block it, and points to `gith stash`. On a detached HEAD, `gith switch -b <name>` creates the branch at the current commit, so commits made there stay on it. It does not create or switch branches for other commits, so commits made on a detached HEAD are easy to lose: name a branch before you leave.
 - **`remove -b <branch>`** removes the branch on both sides: the local branch first (with `git branch -d`, so git refuses to delete an unmerged branch), then the origin branch. A side that does not exist is skipped, so a branch that lives only here is still removed. A name that exists in neither place is an error. `--local` touches only this clone; `--remote` touches only origin. Containers (`develop`, `main`, `release/*`, `hotfix/*`) are refused.
-- **`remove --branch`** with no name lists the branches and asks which to remove. By default it lists branch pairs, meaning branches that exist both here and on origin. `--local` lists local branches and `--remote` lists origin branches. Each choice is removed on the same sides as above. `-limit <n>` shows only the first `n` (all by default), and the picker numbers only those. Answer with numbers or ranges, such as `1,3-4`; an empty answer cancels. The list needs a terminal, and that is checked before anything is listed. The checked-out branch and containers are never listed. Choosing items is the confirmation, so nothing else is asked. If a delete fails (for example, an unmerged branch), the removal stops there and earlier picks stay deleted.
+- **`remove`** with no name opens the list of branches and asks which to remove, the same as `remove --branch`. By default it lists branch pairs, meaning branches that exist both here and on origin. `--local` lists local branches and `--remote` lists origin branches. Each choice is removed on the same sides as above. `-limit <n>` shows only the first `n` (all by default), and the picker numbers only those. Pick with the arrow keys: up and down move, space checks an item, enter confirms the checked items, and esc cancels. `switch` takes one item with enter. The list needs a terminal, and that is checked before anything is listed. The checked-out branch and containers are never listed. Choosing items is the confirmation, so nothing else is asked. If a delete fails (for example, an unmerged branch), the removal stops there and earlier picks stay deleted.
 - **`status`** prints the branch and how far it is ahead of or behind its origin branch, then counts staged, unstaged, untracked and conflicting files. It changes nothing.
 - **`update`** fetches `origin/develop` and merges it into the current work branch. It needs a clean working tree and refuses containers. If the merge conflicts, it aborts the merge and says so. It does not push.
 - **`undo`** runs `git reset --soft HEAD~1`: the last commit is removed and its changes stay staged. It refuses when HEAD is already on origin, because undoing a pushed commit needs a force-push.
@@ -169,6 +183,7 @@ Commands that choose between flags (for example `create -b`, `-r` and `-h`, or `
 - **`setup -n npm`** writes `.githooks/pre-commit` for an npm project and sets `core.hooksPath` to `.githooks`, so every clone runs the same checks. The hook runs `lint`, `typecheck` and `test` (the scripts are picked up from package.json; TypeScript projects always run `lint` and `typecheck`, and `test` only when it exists). It uses the package manager from the lockfile (`bun`, `pnpm`, `yarn`, or `npm`). It adds a `prepare` script so installing the project turns the hooks on again. It refuses to overwrite an existing hook unless `--force` is given, and it must run in the folder that holds `.git`. Only `npm` is supported for now.
 - **`doctor`** checks git, a repository, origin, its reachability, `main` and `develop` on origin, and a clean working tree. It exits 1 if a required check fails, and only warns about the tree.
 - **`sync`** runs `git fetch --all --tags --prune`.
+- **`sync <branch>:<branch>`** (for example `sync develop:develop`) syncs one branch with origin in both directions. If origin is ahead, it fetches the branch like `git fetch origin develop:develop`; if local is ahead, it pushes it; if it is the same, it says so. A checked-out branch is fast-forwarded with `merge --ff-only`. Diverged branches stop with an error, and nothing is forced. A branch missing on one side is created there. `sync develop` alone works too.
 - **`tree`** lists the working trees of the repository (`git worktree list`): each path, its branch or `(detached)`, and its short HEAD. The current one is marked `*`, and bare, locked or prunable trees are noted. `-limit <n>` caps the rows; all are shown by default.
 - **`list --tags`** shows every tag once, with yes/no columns for local and origin, so you can see which tags are unpushed or missing locally. Version tags are listed newest first, and only the first 5 are shown by default. `-limit <n>` (or `-l <n>`) changes that and adds a note when rows are left out.
 - **`list --commits`** shows the newest commits on the current branch, one per line: short hash, date, author and subject. With `--graph` it draws the branch graph instead. It shows 5 by default; `-l <n>` (or `-limit <n>`) changes that and must be a positive whole number. `-limit` only applies to listings. `gith list` with no flag prints usage.
@@ -177,10 +192,12 @@ Commands that choose between flags (for example `create -b`, `-r` and `-h`, or `
 
 ## What it does
 
-- **`create -b`** creates the branch from `origin/develop`, pushes it with upstream tracking, and leaves the current branch checked out. It does not touch the working tree, so it works with uncommitted changes.
+- **`create -b`** creates `develop--<name>` from `origin/develop`, pushes it with upstream tracking, and leaves the current branch checked out. The prefix shows the source branch; `create -b develop` and `create -b main` are refused. It does not touch the working tree, so it works with uncommitted changes.
 - **`create -r` / `create -h`** creates a container from its base (`develop` for release, `main` for hotfix), refusing names that already exist on origin. Like `create -b`, it does not switch.
 - **With `--release` or `--hotfix` (no value)**, the version is worked out from the highest `vX.Y.Z` tag across local tags and origin: `-r` takes the next minor (`1.2.1` → `1.3.0`), `-h` takes the next patch (`1.2.1` → `1.2.2`). With no tags yet, the first release is `0.1.0` and the first hotfix `0.0.1`. The version is printed before the branch is created.
 - **`merge --current-release`** and **`--current-hotfix`** pick the newest `release/*` or `hotfix/*` branch by version (numbers compare as numbers, so `1.10.0` beats `1.9.0`), checking both local branches and origin, and merge into it. The target must exist on origin, because the merge pushes it; a newest branch that only exists here stops the command with a message.
+- **`finish --current-release`** (and `--current-hotfix`) releases the newest `release/*` (or `hotfix/*`), named by its version X.Y.Z. It makes `package.json`'s version match the name (committed as `X.Y.Z`, only when they differ), adds the changelog entry as its own commit (when it is missing), merges the branch into `main` with `--no-ff`, tags `vX.Y.Z` and pushes, merges `main` into `develop` when `develop` exists on origin, and then asks before deleting the branch. A conflict aborts the merge and stops. Projects without a `package.json` keep their version by hand.
+- **`merge`** with no flags asks which branch to merge and which target to merge it into (develop, release/*, hotfix/*), with the arrow keys. After a merge into a target, the work branch is deleted here and on origin, after a Y/n question. Without a terminal, or on a no, it is kept. Release and hotfix branches are never deleted this way.
 - **`merge`** pushes the work branch, merges the target into it first (so conflicts happen on the work branch and are aborted cleanly), then merges it into the target with `--no-ff`, pushes, and checks that both branches match origin.
 
 Containers (`develop`, `main`, `release/*`, `hotfix/*`) can't be merged from, and only `develop`, `release/*` and `hotfix/*` can be merged into.
@@ -211,3 +228,7 @@ bun run typecheck   # tsc --noEmit
 ## Publishing
 
 The package ships one built file, `bin/gith.js`, which runs on Node. `npm pack --dry-run` lists what would be published. `prepublishOnly` runs lint, typecheck, the tests and the build before any publish. `.github/workflows/publish.yml` runs the same checks, then `npm publish --access public`, whenever a `v*` tag is pushed. It uses npm trusted publishing (OIDC), so no npm token is stored in the repo. Bump the version with `gith release` or `npm version`, which creates the tag.
+
+## Support
+
+If this project is useful to you, you can support its development on [Ko-fi](https://ko-fi.com/tertiumnon).

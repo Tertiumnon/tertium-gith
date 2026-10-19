@@ -7,7 +7,6 @@ import {
   branchTimes,
   candidates,
   detachedOptions,
-  parseSelection,
   staleOptions,
 } from "./maintenance";
 
@@ -152,17 +151,6 @@ describe("maintenance", () => {
       ]);
     });
 
-    test("parseSelection reads numbers and ranges, drops duplicates, rejects bad input", () => {
-      expect(parseSelection("1,3-4", 5)).toEqual([0, 2, 3]);
-      expect(parseSelection("2, 2", 3)).toEqual([1]);
-      expect(parseSelection("", 3)).toEqual([]);
-      expect(() => parseSelection("4", 3)).toThrow(
-        "'4' is not a choice from 1 to 3.",
-      );
-      expect(() => parseSelection("2-1", 3)).toThrow();
-      expect(() => parseSelection("x", 3)).toThrow();
-    });
-
     test("without a terminal, the list is not shown and -b needs a name", () => {
       const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "gith-pick-"));
       try {
@@ -204,10 +192,12 @@ describe("maintenance", () => {
         const result = gith(repo, ["create", "-b", "login", "--dry-run"]);
         expect(result.status).toBe(0);
         expect(result.stdout).toContain("dry run: nothing below is changed.");
-        expect(result.stdout).toContain("> git branch login origin/develop");
-        expect(result.stdout).toContain("> git push -u origin login");
-        expect(branchExists(repo, "login")).toBe(false);
-        expect(onOrigin(repo, "login")).toBe(false);
+        expect(result.stdout).toContain(
+          "> git branch develop--login origin/develop",
+        );
+        expect(result.stdout).toContain("> git push -u origin develop--login");
+        expect(branchExists(repo, "develop--login")).toBe(false);
+        expect(onOrigin(repo, "develop--login")).toBe(false);
 
         fs.writeFileSync(path.join(repo, "untracked.txt"), "x");
         const clean = gith(repo, ["clean", "--dry-run"]);
@@ -560,4 +550,224 @@ describe("switch-commit", () => {
       }
     }, 60_000);
   });
+});
+
+describe("remove --detached --all (test)", () => {
+  const CLI = path.resolve(import.meta.dir, "../../cli.ts");
+
+  function git(cwd: string, args: string[]) {
+    return spawnSync("git", args, { cwd, encoding: "utf8" });
+  }
+
+  function gith(cwd: string, args: string[]) {
+    return spawnSync(process.execPath, [CLI, ...args], {
+      cwd,
+      encoding: "utf8",
+    });
+  }
+
+  describe("remove --detached --all", () => {
+    test("lists the local-only branches, asks once, and keeps branches that have an origin copy", () => {
+      const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "gith-detached-all-"));
+      try {
+        const repo = path.join(tmp, "repo");
+        fs.mkdirSync(repo);
+        git(tmp, ["init", "--bare", path.join(tmp, "remote.git")]);
+        git(repo, ["init", "-b", "main"]);
+        git(repo, ["config", "user.email", "test@example.com"]);
+        git(repo, ["config", "user.name", "Test"]);
+        fs.writeFileSync(path.join(repo, "a.txt"), "a");
+        git(repo, ["add", "."]);
+        git(repo, ["commit", "-m", "initial"]);
+        git(repo, ["remote", "add", "origin", "../remote.git"]);
+        git(repo, ["push", "-u", "origin", "main"]);
+        git(repo, ["branch", "lonely-one"]);
+        git(repo, ["branch", "lonely-two"]);
+        git(repo, ["branch", "shared"]);
+        git(repo, ["push", "-u", "origin", "shared"]);
+
+        const dry = gith(repo, ["remove", "--detached", "--all", "--dry-run"]);
+        expect(dry.status).toBe(0);
+        expect(dry.stdout).toContain("lonely-one");
+        expect(dry.stdout.indexOf("lonely-one")).toBeLessThan(
+          dry.stdout.indexOf("Remove these"),
+        );
+        expect(dry.stdout).toContain("lonely-two");
+        expect(dry.stdout).not.toContain("shared");
+        expect(dry.stdout).toContain("> git branch -d -- lonely-one");
+
+        const refused = gith(repo, ["remove", "--detached", "--all"]);
+        expect(refused.status).toBe(1);
+        expect(git(repo, ["branch", "--list", "lonely-one"]).stdout).toContain(
+          "lonely-one",
+        );
+
+        const done = gith(repo, ["remove", "--detached", "--all", "--yes"]);
+        expect(done.status).toBe(0);
+        expect(
+          git(repo, ["branch", "--list", "lonely-one"]).stdout.trim(),
+        ).toBe("");
+        expect(
+          git(repo, ["branch", "--list", "lonely-two"]).stdout.trim(),
+        ).toBe("");
+        expect(git(repo, ["branch", "--list", "shared"]).stdout).toContain(
+          "shared",
+        );
+
+        expect(
+          gith(repo, ["remove", "--detached", "--all", "-l", "1"]).status,
+        ).toBe(1);
+        expect(gith(repo, ["remove", "--branch", "--all"]).status).toBe(1);
+      } finally {
+        fs.rmSync(tmp, { recursive: true, force: true });
+      }
+    }, 60_000);
+  });
+});
+
+describe("switch --release and --hotfix", () => {
+  const CLI = path.resolve(import.meta.dir, "../../cli.ts");
+
+  function git(cwd: string, args: string[]) {
+    return spawnSync("git", args, { cwd, encoding: "utf8" });
+  }
+
+  function gith(cwd: string, args: string[]) {
+    return spawnSync(process.execPath, [CLI, ...args], {
+      cwd,
+      encoding: "utf8",
+    });
+  }
+
+  test("switches to the newest release on origin, to a named version, and refuses a missing hotfix", () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "gith-switch-release-"));
+    try {
+      const repo = path.join(tmp, "repo");
+      fs.mkdirSync(repo);
+      git(tmp, ["init", "--bare", path.join(tmp, "remote.git")]);
+      git(repo, ["init", "-b", "main"]);
+      git(repo, ["config", "user.email", "test@example.com"]);
+      git(repo, ["config", "user.name", "Test"]);
+      fs.writeFileSync(path.join(repo, "a.txt"), "a");
+      git(repo, ["add", "."]);
+      git(repo, ["commit", "-m", "initial"]);
+      git(repo, ["remote", "add", "origin", "../remote.git"]);
+      git(repo, ["push", "-u", "origin", "main"]);
+      git(repo, ["branch", "develop"]);
+      git(repo, ["push", "-u", "origin", "develop"]);
+      for (const version of ["1.9.0", "1.10.0"]) {
+        git(repo, ["branch", `release/${version}`, "develop"]);
+        git(repo, ["push", "origin", `release/${version}`]);
+      }
+
+      expect(gith(repo, ["switch", "--release"]).status).toBe(0);
+      expect(git(repo, ["branch", "--show-current"]).stdout.trim()).toBe(
+        "release/1.10.0",
+      );
+
+      expect(gith(repo, ["switch", "-r", "1.9.0"]).status).toBe(0);
+      expect(git(repo, ["branch", "--show-current"]).stdout.trim()).toBe(
+        "release/1.9.0",
+      );
+
+      expect(gith(repo, ["switch", "-r", "9.9.9"]).status).toBe(1);
+      expect(gith(repo, ["switch", "--hotfix"]).status).toBe(1);
+      expect(gith(repo, ["switch", "--release", "-b", "x"]).status).toBe(1);
+      const picker = gith(repo, ["switch"]);
+      expect(picker.status).toBe(1);
+      expect(picker.stderr).toContain("the list needs a terminal");
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  }, 60_000);
+});
+
+describe("sync <branch>:<branch>", () => {
+  const CLI = path.resolve(import.meta.dir, "../../cli.ts");
+
+  function git(cwd: string, args: string[]) {
+    return spawnSync("git", args, { cwd, encoding: "utf8" });
+  }
+
+  function gith(cwd: string, args: string[]) {
+    return spawnSync(process.execPath, [CLI, ...args], {
+      cwd,
+      encoding: "utf8",
+    });
+  }
+
+  function sha(cwd: string, ref: string): string {
+    return git(cwd, ["rev-parse", ref]).stdout.trim();
+  }
+
+  function remoteSha(cwd: string, branch: string): string {
+    return (
+      git(cwd, ["ls-remote", "origin", `refs/heads/${branch}`])
+        .stdout.trim()
+        .split(/\s+/)[0] ?? ""
+    );
+  }
+
+  function commit(cwd: string, file: string): void {
+    fs.writeFileSync(path.join(cwd, file), file);
+    git(cwd, ["add", "."]);
+    git(cwd, ["commit", "-m", file]);
+  }
+
+  test("fast-forwards when behind, pushes when ahead, stops when diverged", () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "gith-sync-"));
+    try {
+      const repo = path.join(tmp, "repo");
+      const other = path.join(tmp, "other");
+      git(tmp, ["init", "--bare", path.join(tmp, "remote.git")]);
+      fs.mkdirSync(repo);
+      git(repo, ["init", "-b", "main"]);
+      git(repo, ["config", "user.email", "test@example.com"]);
+      git(repo, ["config", "user.name", "Test"]);
+      commit(repo, "a.txt");
+      git(repo, ["remote", "add", "origin", "../remote.git"]);
+      git(repo, ["push", "-u", "origin", "main"]);
+      git(repo, ["branch", "develop"]);
+      git(repo, ["push", "-u", "origin", "develop"]);
+
+      // another clone moves origin/develop ahead: the local branch is fast-forwarded
+      git(tmp, ["clone", "remote.git", "other"]);
+      git(other, ["config", "user.email", "test@example.com"]);
+      git(other, ["config", "user.name", "Test"]);
+      git(other, ["checkout", "develop"]);
+      commit(other, "b.txt");
+      git(other, ["push", "origin", "develop"]);
+      expect(gith(repo, ["sync", "develop:develop"]).status).toBe(0);
+      expect(sha(repo, "develop")).toBe(sha(repo, "origin/develop"));
+
+      // local develop ahead: pushed to origin
+      git(repo, ["checkout", "develop"]);
+      commit(repo, "c.txt");
+      expect(gith(repo, ["sync", "develop:develop"]).status).toBe(0);
+      expect(sha(repo, "develop")).toBe(remoteSha(repo, "develop"));
+
+      // checked-out branch behind origin: fast-forwarded by merge
+      git(other, ["fetch", "origin"]);
+      git(other, ["reset", "--hard", "origin/develop"]);
+      commit(other, "d.txt");
+      git(other, ["push", "origin", "develop"]);
+      expect(gith(repo, ["sync", "develop:develop"]).status).toBe(0);
+      expect(sha(repo, "develop")).toBe(sha(repo, "origin/develop"));
+
+      // diverged: refused, nothing moves
+      git(repo, ["checkout", "main"]);
+      git(repo, ["branch", "-f", "develop", "origin/develop~1"]);
+      commit(repo, "x.txt");
+      const local = sha(repo, "develop");
+      git(repo, ["checkout", "develop"]);
+      commit(repo, "e.txt");
+      expect(gith(repo, ["sync", "develop:develop"]).status).toBe(1);
+      expect(sha(repo, "develop")).not.toBe(local);
+
+      // a different name on the other side is refused
+      expect(gith(repo, ["sync", "develop:main"]).status).toBe(1);
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  }, 60_000);
 });

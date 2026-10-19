@@ -245,3 +245,30 @@ describe("show", () => {
     }, 60_000);
   });
 });
+
+describe("show --pockets when empty", () => {
+  test("says there is nothing in the pockets", () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "gith-pockets-"));
+    try {
+      const repo = path.join(tmp, "repo");
+      fs.mkdirSync(repo);
+      spawnSync("git", ["init", "-b", "main"], { cwd: repo });
+      spawnSync("git", ["config", "user.email", "test@example.com"], {
+        cwd: repo,
+      });
+      spawnSync("git", ["config", "user.name", "Test"], { cwd: repo });
+      fs.writeFileSync(path.join(repo, "a.txt"), "a");
+      spawnSync("git", ["add", "."], { cwd: repo });
+      spawnSync("git", ["commit", "-m", "initial"], { cwd: repo });
+      const run = spawnSync(
+        process.execPath,
+        [path.resolve(import.meta.dir, "../../cli.ts"), "show", "--pockets"],
+        { cwd: repo, encoding: "utf8" },
+      );
+      expect(run.status).toBe(0);
+      expect(run.stdout).toContain("There is nothing in my pockets!");
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  }, 60_000);
+});
