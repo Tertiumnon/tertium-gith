@@ -15,19 +15,6 @@ Git helper: the branch flow from [git-convention](https://github.com/Tertiumnon/
 
 > **Very early state (0.1.0).** Commands and flags may change without notice, and the tool has only been run against throwaway test repositories. Check the result with `git log` and `git status` before you push.
 
-## Install
-
-Needs [Node.js](https://nodejs.org) 18 or newer and git on the PATH.
-
-```bash
-npm install -g @tertium/gith
-gith --version
-```
-
-From a clone of this repository, build the CLI and link it: `bun install`, `bun run build`, `npm link`.
-
-`bun install` also points git at `.githooks/`, so each commit runs `bun run typecheck`, `bun run format:check` and `bun run lint` first, and a failing check stops it. `bun run format` rewrites files to the formatter's style.
-
 ## Usage
 
 ```bash
@@ -210,19 +197,10 @@ Both need a clean working tree and a `package.json` with a version, because they
 
 Each failure exits with code 1 and a message. Conflicts leave you on the work branch with the merge aborted, so you can resolve and retry.
 
-## Development
+## Documentation
 
-```bash
-bun install
-bun run test        # unit tests
-bun run lint        # biome check
-bun run lint:fix    # biome check --write
-bun run typecheck   # tsc --noEmit
-```
-
-## Publishing
-
-The package ships one built file, `bin/gith.js`, which runs on Node. `npm pack --dry-run` lists what would be published. `prepublishOnly` runs lint, typecheck, the tests and the build before any publish. `.github/workflows/publish.yml` runs the same checks, then `npm publish --access public`, whenever a `v*` tag is pushed. It uses npm trusted publishing (OIDC), so no npm token is stored in the repo. Bump the version with `gith release` or `npm version`, which creates the tag.
+- [Install](docs/INSTALL.md)
+- [Development](docs/DEVELOPMENT.md)
 
 ## Support
 
