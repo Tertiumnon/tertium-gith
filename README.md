@@ -197,11 +197,6 @@ Both need a clean working tree and a `package.json` with a version, because they
 
 Each failure exits with code 1 and a message. Conflicts leave you on the work branch with the merge aborted, so you can resolve and retry.
 
-## Documentation
-
-- [Install](docs/INSTALL.md)
-- [Development](docs/DEVELOPMENT.md)
-
 ## Support
 
 If this project is useful to you, you can support its development on [Ko-fi](https://ko-fi.com/tertiumnon).
