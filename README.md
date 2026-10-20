@@ -1,5 +1,7 @@
 # @tertium/gith
 
+gith: git-only branch flow CLI (goal branches, release/hotfix containers, synced merges).
+
 ```
           o
          /
