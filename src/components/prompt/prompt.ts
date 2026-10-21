@@ -18,7 +18,10 @@ export async function confirm(question: string): Promise<boolean> {
     console.log(`dry run: would ask: ${question}`);
     return true;
   }
-  if (assumeYes) return true;
+  if (assumeYes) {
+    console.log(`${question}yes (--yes)`);
+    return true;
+  }
   if (!process.stdin.isTTY)
     throw new Error(
       "this needs a terminal to confirm; pass --yes to skip the question.",

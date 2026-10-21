@@ -770,4 +770,48 @@ describe("sync <branch>:<branch>", () => {
       fs.rmSync(tmp, { recursive: true, force: true });
     }
   }, 60_000);
+
+  test("bare sync syncs the current branch, --develop and --main sync that branch from any branch", () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "gith-sync-flags-"));
+    try {
+      const repo = path.join(tmp, "repo");
+      const other = path.join(tmp, "other");
+      git(tmp, ["init", "--bare", path.join(tmp, "remote.git")]);
+      fs.mkdirSync(repo);
+      git(repo, ["init", "-b", "main"]);
+      git(repo, ["config", "user.email", "test@example.com"]);
+      git(repo, ["config", "user.name", "Test"]);
+      commit(repo, "a.txt");
+      git(repo, ["remote", "add", "origin", "../remote.git"]);
+      git(repo, ["push", "-u", "origin", "main"]);
+      git(repo, ["branch", "develop"]);
+      git(repo, ["push", "-u", "origin", "develop"]);
+
+      git(tmp, ["clone", "remote.git", "other"]);
+      git(other, ["config", "user.email", "test@example.com"]);
+      git(other, ["config", "user.name", "Test"]);
+      git(other, ["checkout", "develop"]);
+      commit(other, "b.txt");
+      git(other, ["push", "origin", "develop"]);
+
+      expect(gith(repo, ["sync", "--develop"]).status).toBe(0);
+      expect(sha(repo, "develop")).toBe(sha(repo, "origin/develop"));
+      expect(git(repo, ["branch", "--show-current"]).stdout.trim()).toBe(
+        "main",
+      );
+
+      commit(other, "c.txt");
+      git(other, ["push", "origin", "develop"]);
+      git(other, ["checkout", "main"]);
+      commit(other, "d.txt");
+      git(other, ["push", "origin", "main"]);
+      expect(gith(repo, ["sync"]).status).toBe(0);
+      expect(sha(repo, "main")).toBe(sha(repo, "origin/main"));
+      expect(sha(repo, "develop")).not.toBe(sha(repo, "origin/develop"));
+
+      expect(gith(repo, ["sync", "--develop", "--main"]).status).toBe(1);
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  }, 60_000);
 });

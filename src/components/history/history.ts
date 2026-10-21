@@ -41,11 +41,11 @@ export function undo(flags: Flags): void {
   gitArgs(["reset", "--soft", "HEAD~1"]);
 }
 
-// gith save: with commits of its own, folds the staged changes into the last commit and keeps its
-// message (-m replaces it). Without them, creates a new commit, asking for its message unless -m is
-// given. --all stages every change first (git add -A). It pushes only when origin already has this
-// branch and its copy differs from the new commit: a plain push when the commit moves forward, or
-// --force-with-lease after rewriting a pushed commit (asks first).
+// gith save: commits the staged changes locally and never pushes without asking. Unstaged changes are
+// staged first (git add -A): one file silently, several after asking; --all stages without asking.
+// With commits of its own, it asks to amend the previous commit: yes folds the changes into it (-m
+// replaces its message), no creates a new commit, asking for its message unless -m is given. Then it
+// asks to push, or to force-push when it amended a commit origin has.
 export async function save(flags: Flags): Promise<void> {
   const message = flags.get("message");
   const extra = [...flags.keys()].filter(
@@ -54,50 +54,44 @@ export async function save(flags: Flags): Promise<void> {
   if (extra.length > 0)
     throw new Error("usage: gith save [-m <message>] [--all]");
   const branch = currentBranch();
-  if (flags.has("all")) gitArgs(["add", "-A"]);
+  const unstaged = captureArgs(["add", "-A", "--dry-run"])
+    .split("\n")
+    .filter(Boolean);
+  const stageAll =
+    flags.has("all") ||
+    unstaged.length === 1 ||
+    (unstaged.length > 1 &&
+      (await confirm(`Stage all ${unstaged.length} changes first? [Y/n] `)));
+  if (stageAll && unstaged.length > 0) {
+    console.log(`Staging ${unstaged.length} unstaged change(s):`);
+    for (const line of unstaged) console.log(`  ${line}`);
+  }
+  if (stageAll) gitArgs(["add", "-A"]);
   if (captureArgs(["diff", "--cached", "--name-only"]) === "") {
-    throw new Error(
-      "nothing staged; stage the changes to add to the last commit.",
-    );
+    throw new Error("nothing staged; stage the changes to save.");
   }
-  const owned = hasOwnCommit();
-  const pushed = captureArgs(["branch", "-r", "--contains", "HEAD"]) !== "";
-  const rewrite = owned && pushed;
-  const remote = remoteSha(branch);
-  if (rewrite && remote === "") {
-    throw new Error(
-      "HEAD is already on origin under another branch; changing it would need a force-push.",
-    );
-  }
-  if (rewrite) {
-    const yes = await confirm(
-      `HEAD is already on origin/${branch}. Save it and force-push ${branch}? [Y/n] `,
-    );
-    if (!yes) {
-      console.log("save cancelled; nothing changed.");
-      return;
-    }
-  }
-  if (owned) {
+  const previous = captureArgs(["rev-parse", "HEAD"]);
+  const amend =
+    hasOwnCommit() && (await confirm("Amend the previous commit? [Y/n] "));
+  if (amend) {
     gitArgs(
       message
         ? ["commit", "--amend", "-m", message]
         : ["commit", "--amend", "--no-edit"],
     );
   } else {
-    const text = message ?? (await askMessage());
-    gitArgs(["commit", "-m", text]);
+    gitArgs(["commit", "-m", message ?? (await askMessage())]);
   }
-  if (remote === "") {
-    console.log(`origin has no ${branch}; not pushed.`);
+  const rewrites = amend && remoteSha(branch) === previous;
+  const question = rewrites
+    ? `Force-push ${branch} to origin? [Y/n] `
+    : `Push ${branch} to origin? [Y/n] `;
+  if (!(await confirm(question))) {
+    console.log("Saved locally; not pushed.");
     return;
   }
-  if (!isDryRun() && captureArgs(["rev-parse", "HEAD"]) === remote) {
-    console.log("origin already has this commit; not pushed.");
-    return;
-  }
-  if (rewrite) gitArgs(["push", "--force-with-lease", "origin", branch]);
-  else gitArgs(["push", "origin", branch]);
+  if (rewrites) gitArgs(["push", "--force-with-lease", "origin", branch]);
+  else gitArgs(["push", "-u", "origin", branch]);
 }
 
 // gith squash -limit <n> [-m <message>]: combines the last n commits into one. Without -m the

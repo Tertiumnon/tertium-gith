@@ -47,7 +47,7 @@ Start and finish work
 
 Fix history
   gith undo                          undo the last commit, keep its changes staged (not if pushed)
-  gith save [-m <msg>] [--all]       fold staged changes (--all stages every change first) into the last commit, or commit them if the branch has none yet (asks for a message); pushes if origin differs (asks before a force-push)
+  gith save [-m <msg>] [--all]       commit staged changes locally; stages unstaged changes first (one silently, several after asking; --all without asking), then asks to amend the previous commit (else asks for a message), then asks to push, or to force-push after an amend
   gith squash -limit <n> [-m <msg>]  combine the last n commits into one (keeps the oldest message)
 
 Save and reset work
@@ -82,7 +82,8 @@ Look at the repo
                                      period: --overall (default), --current-year|-month|-week, --last-year|-month|-week
 
 Remote and health
-  gith sync                          fetch all remotes and tags, prune stale refs
+  gith sync                          fetch all remotes and tags, prune stale refs, then sync this branch with origin both ways
+  gith sync --develop | --main       the same for develop or main
   gith sync develop:develop          two-way sync of one branch with origin: fetch it when behind, push it when ahead, stop when diverged
   gith open                          open origin in the browser
   gith doctor                        check the repo is ready for the branch flow (exit 1 on failures)

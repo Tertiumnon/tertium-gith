@@ -93,7 +93,7 @@ describe("history", () => {
         expect(gith(repo, ["save"]).status).toBe(1); // nothing staged
         fs.writeFileSync(path.join(repo, "one.txt"), "amended");
         git(repo, ["add", "one.txt"]);
-        expect(gith(repo, ["save"]).status).toBe(0);
+        expect(gith(repo, ["save", "--yes"]).status).toBe(0);
         expect(git(repo, ["rev-list", "--count", "HEAD"]).stdout.trim()).toBe(
           before,
         );
@@ -159,7 +159,7 @@ describe("save", () => {
       }
     }, 60_000);
 
-    test("dry run shows the save and the force-push, and does neither", () => {
+    test("dry run asks to amend and to force-push, and changes nothing", () => {
       const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "gith-save-dry-"));
       try {
         const repo = fixture(tmp);
@@ -169,12 +169,88 @@ describe("save", () => {
         const result = gith(repo, ["save", "--dry-run"]);
         expect(result.status).toBe(0);
         expect(result.stdout).toContain(
-          "would ask: HEAD is already on origin/work",
+          "would ask: Amend the previous commit?",
+        );
+        expect(result.stdout).toContain(
+          "would ask: Force-push work to origin?",
         );
         expect(result.stdout).toContain(
           "> git push --force-with-lease origin work",
         );
         expect(git(repo, ["rev-parse", "HEAD"]).stdout.trim()).toBe(before);
+      } finally {
+        fs.rmSync(tmp, { recursive: true, force: true });
+      }
+    }, 60_000);
+  });
+
+  describe("save stages all changes first when asked", () => {
+    test("a single unstaged file is staged without asking", () => {
+      const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "gith-save-one-"));
+      try {
+        const repo = fixture(tmp);
+        fs.writeFileSync(path.join(repo, "new.txt"), "new");
+        const result = gith(repo, ["save"]);
+        expect(result.status).toBe(1);
+        expect(result.stderr).toContain("needs a terminal to confirm");
+        expect(git(repo, ["status", "--porcelain"]).stdout.trim()).toBe(
+          "A  new.txt",
+        );
+      } finally {
+        fs.rmSync(tmp, { recursive: true, force: true });
+      }
+    }, 60_000);
+
+    test("several unstaged files are asked about, and left alone without a terminal", () => {
+      const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "gith-save-many-"));
+      try {
+        const repo = fixture(tmp);
+        fs.writeFileSync(path.join(repo, "one.txt"), "1");
+        fs.writeFileSync(path.join(repo, "two.txt"), "2");
+        const result = gith(repo, ["save"]);
+        expect(result.status).toBe(1);
+        expect(result.stderr).toContain("needs a terminal to confirm");
+        expect(git(repo, ["status", "--porcelain"]).stdout.trim()).toBe(
+          "?? one.txt\n?? two.txt",
+        );
+      } finally {
+        fs.rmSync(tmp, { recursive: true, force: true });
+      }
+    }, 60_000);
+
+    test("with a yes, an unstaged new file is staged and saved with the commit", () => {
+      const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "gith-save-all-"));
+      try {
+        const repo = fixture(tmp);
+        fs.writeFileSync(path.join(repo, "new.txt"), "new");
+        const result = gith(repo, ["save", "--yes"]);
+        expect(result.status).toBe(0);
+        expect(result.stdout).toContain("Staging 1 unstaged change(s):");
+        expect(result.stdout).toContain("add 'new.txt'");
+        expect(result.stdout).toContain("(--yes)");
+        expect(
+          git(repo, ["show", "--name-only", "--format=", "HEAD"]).stdout,
+        ).toContain("new.txt");
+      } finally {
+        fs.rmSync(tmp, { recursive: true, force: true });
+      }
+    }, 60_000);
+  });
+
+  describe("save amends a pushed commit and force-pushes it", () => {
+    test("with a yes, origin ends on the amended commit", () => {
+      const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "gith-save-force-"));
+      try {
+        const repo = fixture(tmp);
+        const before = git(repo, ["rev-parse", "HEAD"]).stdout.trim();
+        fs.writeFileSync(path.join(repo, "b.txt"), "changed");
+        git(repo, ["add", "b.txt"]);
+        expect(gith(repo, ["save", "--yes"]).status).toBe(0);
+        const head = git(repo, ["rev-parse", "HEAD"]).stdout.trim();
+        expect(head).not.toBe(before);
+        expect(
+          git(repo, ["ls-remote", "--heads", "origin", "work"]).stdout,
+        ).toContain(head);
       } finally {
         fs.rmSync(tmp, { recursive: true, force: true });
       }
@@ -191,7 +267,7 @@ describe("save", () => {
         git(repo, ["commit", "-m", "local only"]);
         fs.writeFileSync(path.join(repo, "c.txt"), "changed");
         git(repo, ["add", "c.txt"]);
-        expect(gith(repo, ["save"]).status).toBe(0);
+        expect(gith(repo, ["save", "--yes"]).status).toBe(0);
         const head = git(repo, ["rev-parse", "HEAD"]).stdout.trim();
         expect(
           git(repo, ["ls-remote", "--heads", "origin", "work"]).stdout,
@@ -201,19 +277,19 @@ describe("save", () => {
       }
     }, 60_000);
 
-    test("a branch origin does not have is saved locally, and nothing is pushed", () => {
+    test("the commit stays local when the push is not answered, and nothing is pushed", () => {
       const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "gith-save-solo-"));
       try {
         const repo = fixture(tmp);
-        git(repo, ["switch", "-c", "solo"]);
+        git(repo, ["switch", "-c", "solo", "main"]);
         fs.writeFileSync(path.join(repo, "s.txt"), "s");
-        git(repo, ["add", "."]);
-        git(repo, ["commit", "-m", "solo work"]);
-        fs.writeFileSync(path.join(repo, "s.txt"), "changed");
         git(repo, ["add", "s.txt"]);
-        const result = gith(repo, ["save"]);
-        expect(result.status).toBe(0);
-        expect(result.stdout).toContain("origin has no solo; not pushed.");
+        const result = gith(repo, ["save", "-m", "solo work"]);
+        expect(result.status).toBe(1);
+        expect(result.stderr).toContain("needs a terminal to confirm");
+        expect(git(repo, ["log", "-1", "--format=%s"]).stdout.trim()).toBe(
+          "solo work",
+        );
         expect(
           git(repo, ["ls-remote", "--heads", "origin", "solo"]).stdout.trim(),
         ).toBe("");
@@ -249,7 +325,9 @@ describe("save", () => {
         const base = git(repo, ["rev-parse", "HEAD"]).stdout.trim();
         fs.writeFileSync(path.join(repo, "a.txt"), "changed");
         git(repo, ["add", "a.txt"]);
-        expect(gith(repo, ["save", "-m", "first change"]).status).toBe(0);
+        expect(gith(repo, ["save", "-m", "first change", "--yes"]).status).toBe(
+          0,
+        );
         expect(git(repo, ["log", "-1", "--format=%s"]).stdout.trim()).toBe(
           "first change",
         );

@@ -47,7 +47,7 @@ gith release --major                # npm version major, from develop into main
 
 # Fix history
 gith undo                           # undo the last commit, keep its changes staged (not if pushed)
-gith save [-m "msg"] [--all]         # --all stages every change first; fold staged changes into the last commit, or make a new commit with them if the branch has none yet (asks for a message); pushes if origin differs
+gith save [-m "msg"] [--all]         # stages unstaged changes first (--all without asking), commits locally, asks to amend the previous commit or to make a new one, then asks to push (force-push after an amend)
 gith squash -limit 3 [-m "msg"]     # combine the last 3 commits into one (keeps the oldest message)
 
 # Save and reset work
@@ -89,7 +89,8 @@ gith stat                           # fun facts about this branch: biggest commi
 gith stat --last-week -limit 50     # the same for last week, looking at no more than 50 commits
 
 # Remote and health
-gith sync                           # fetch all remotes and tags, prune stale refs
+gith sync                           # fetch all remotes and tags, prune stale refs, then sync this branch with origin both ways
+gith sync --develop | --main         # the same for develop or main
 gith sync develop:develop           # two-way sync of one branch with origin
 gith open                           # open origin in the browser
 gith doctor                         # check the repo is ready for the branch flow
@@ -148,7 +149,7 @@ Commands that choose between flags (for example `create -b`, `-r` and `-h`, or `
 - **`status`** prints the branch and how far it is ahead of or behind its origin branch, then counts staged, unstaged, untracked and conflicting files. It changes nothing.
 - **`update`** fetches `origin/develop` and merges it into the current work branch. It needs a clean working tree and refuses containers. If the merge conflicts, it aborts the merge and says so. It does not push.
 - **`undo`** runs `git reset --soft HEAD~1`: the last commit is removed and its changes stay staged. It refuses when HEAD is already on origin, because undoing a pushed commit needs a force-push.
-- **`save`** saves the staged changes. If the branch has commits of its own (commits origin's `develop`, or `main`, lacks), it folds them into the last commit with `git commit --amend --no-edit`, keeping its message. `-m` replaces the message. If the branch has no commits of its own, it never touches the base commit: it creates a new commit, asking for its message (an empty answer is refused, and `-m` skips the question). It refuses with nothing staged. It pushes only when origin already has this branch and its copy differs from the new commit: a plain `git push origin <branch>` when the commit only moves forward, or, when a pushed commit was rewritten, a `Save it and force-push ...? [Y/n]` question (Enter means yes; a no changes nothing) followed by `git push --force-with-lease origin <branch>`, which refuses if origin moved since your last fetch. If origin has no such branch, the save stays local. The questions need a terminal, so a script cannot force-push or commit by accident.
+- **`save`** commits the staged changes locally and never pushes without asking. When changes are not staged yet, it stages them first: a single file is staged silently, and with several it asks `Stage all N changes first? [Y/n]` (a no keeps only what is staged; `--all` stages without asking). If the branch has commits of its own (commits origin's `develop`, or `main`, lacks), it asks `Amend the previous commit? [Y/n]`. Yes folds the changes into the last commit with `git commit --amend --no-edit`, keeping its message; `-m` replaces it. No, or no own commits, creates a new commit, asking for its message (an empty answer is refused, and `-m` skips the question). It refuses with nothing staged. Then it asks `Push <branch> to origin? [Y/n]`, a plain `git push -u origin <branch>`. After an amend of a commit origin already has, it asks `Force-push <branch> to origin? [Y/n]` instead, which runs `git push --force-with-lease origin <branch>` and refuses if origin moved since your last fetch. A no leaves the commit local. The questions need a terminal, so a script must pass `--yes`, and a commit made before the push question stays local if that question is not answered.
 - **`stash`** saves changes with `git stash push --include-untracked`. `-n` names the stash. It refuses when there is nothing to save.
 - **`find`** (also `search`) lists the newest commits on this branch that match every filter given:
   - `-commit <text>` matches the commit message, ignoring case, and the text is literal.
@@ -166,8 +167,8 @@ Commands that choose between flags (for example `create -b`, `-r` and `-h`, or `
 - **Every removal shows what it will remove** before deleting anything, including the direct `remove -b` form. The picker and the prompt both show it first.
 - **`open`** opens origin in the browser, turning an `ssh` or `https` remote into a web address. GitHub and GitLab style addresses work.
 - **`doctor`** checks git, a repository, origin, its reachability, `main` and `develop` on origin, and a clean working tree. It exits 1 if a required check fails, and only warns about the tree.
-- **`sync`** runs `git fetch --all --tags --prune`.
-- **`sync <branch>:<branch>`** (for example `sync develop:develop`) syncs one branch with origin in both directions. If origin is ahead, it fetches the branch like `git fetch origin develop:develop`; if local is ahead, it pushes it; if it is the same, it says so. A checked-out branch is fast-forwarded with `merge --ff-only`. Diverged branches stop with an error, and nothing is forced. A branch missing on one side is created there. `sync develop` alone works too.
+- **`sync`** runs `git fetch --all --tags --prune`, then syncs the current branch with origin in both directions. `sync --develop` and `sync --main` do the same for that branch, even when another branch is checked out.
+- **`sync <branch>:<branch>`** (for example `sync develop:develop`) is the same as `sync --develop` for any branch name. If origin is ahead, it fetches the branch like `git fetch origin develop:develop`; if local is ahead, it pushes it; if it is the same, it says so. A checked-out branch is fast-forwarded with `merge --ff-only`. Diverged branches stop with an error, and nothing is forced. A branch missing on one side is created there. `sync develop` alone works too.
 - **`tree`** lists the working trees of the repository (`git worktree list`): each path, its branch or `(detached)`, and its short HEAD. The current one is marked `*`, and bare, locked or prunable trees are noted. `-limit <n>` caps the rows; all are shown by default.
 - **`list --tags`** shows every tag once, with yes/no columns for local and origin, so you can see which tags are unpushed or missing locally. Version tags are listed newest first, and only the first 5 are shown by default. `-limit <n>` (or `-l <n>`) changes that and adds a note when rows are left out.
 - **`list --commits`** shows the newest commits on the current branch, one per line: short hash, date, author and subject. With `--graph` it draws the branch graph instead. It shows 5 by default; `-l <n>` (or `-limit <n>`) changes that and must be a positive whole number. `-limit` only applies to listings. `gith list` with no flag prints usage.

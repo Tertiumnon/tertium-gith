@@ -199,15 +199,22 @@ export async function remove(flags: Flags): Promise<void> {
   await removeBranches(scope, await pick(scope, parseLimit(flags)));
 }
 
-// gith sync: fetches every remote with tags, pruning deleted refs.
+// gith sync: fetches every remote with tags, pruning deleted refs, then syncs the current branch.
+// gith sync --develop | --main: syncs that branch instead.
 export function sync(flags: Flags): void {
-  noFlags(flags, "sync");
-  gitArgs(["fetch", "--all", "--tags", "--prune"]);
+  const kind = onlyOne(flags, ["develop", "main"]);
+  const extra = [...flags.keys()].filter((key) => key !== kind);
+  if (extra.length > 0)
+    throw new Error("usage: gith sync [--develop | --main]");
+  const name = kind ?? currentBranch();
+  if (name === "HEAD")
+    throw new Error(
+      "HEAD is detached; check out a branch, or use gith sync --develop | --main.",
+    );
+  syncWithOrigin(name);
 }
 
-// gith sync develop:develop (or gith sync develop): two-way sync of one branch with origin.
-// Behind origin: fast-forward, like git fetch origin develop:develop. Ahead: push. Diverged or
-// the same name on one side only: stop, nothing is forced.
+// gith sync develop:develop (or gith sync develop): syncs one branch the same way as --develop.
 export function syncBranch(args: string[]): void {
   const [spec = ""] = args;
   const [name = "", other = name] = spec.split(":");
@@ -215,7 +222,15 @@ export function syncBranch(args: string[]): void {
     throw new Error(
       "usage: gith sync <branch>:<branch>, the same name on both sides.",
     );
+  syncWithOrigin(name);
+}
+
+// Two-way sync of one branch with origin, after fetching. Behind origin: fast-forward, like git
+// fetch origin develop:develop. Ahead: push. Diverged or the same name on one side only: stop,
+// nothing is forced.
+function syncWithOrigin(name: string): void {
   assertBranchName(name);
+  gitArgs(["fetch", "--all", "--tags", "--prune"]);
   const local = hasLocal(name);
   const remote = hasOnOrigin(name);
   if (!local && !remote)
@@ -224,7 +239,6 @@ export function syncBranch(args: string[]): void {
     gitArgs(["push", "origin", `${name}:${name}`]);
     return;
   }
-  gitArgs(["fetch", "origin", name]);
   if (!local) {
     gitArgs(["fetch", "origin", `${name}:${name}`]);
     return;
