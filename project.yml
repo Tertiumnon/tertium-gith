@@ -1,3 +1,29 @@
 type: cli
-publish_on:
+slug: tertium-gith
+display_name:
+  en: gith
+short_name: gith
+summary:
+  en: "Git helper: branch flow with goal branches, release and hotfix containers, and everyday git commands."
+keywords:
+  - git
+  - branch flow
+  - release
+categories:
+  - developer-tools
+status: stable
+languages:
+  - en
+default_language: en
+code_languages:
+  - TypeScript
+team:
+  - name: Vitalii Balabanov
+    roles:
+      - owner
+      - developer
+distribution:
+  - npm
+data_collected: none
+listed_on:
   - https://tertiumnon.github.io
