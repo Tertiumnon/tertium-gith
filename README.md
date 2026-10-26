@@ -17,6 +17,8 @@ Git helper: the branch flow from [git-convention](https://github.com/Tertiumnon/
 
 See [Command design rules](docs/RULES.md) before changing or adding commands and flags.
 
+See [CHANGELOG.md](CHANGELOG.md) for user-facing release notes and the changes included in each version. GitHub Releases are also published for tagged versions.
+
 > **Very early state (0.1.0).** Commands and flags may change without notice, and the tool has only been run against throwaway test repositories. Check the result with `git log` and `git status` before you push.
 
 ## Usage
@@ -211,6 +213,8 @@ Run as `gith release --patch`, `--minor` or `--major`.
 - **`minor` and `major`** run from `develop`: bump the version with its changelog entry, push with tags, merge `develop` into `main`, then bring `main` back to `develop`.
 
 Both need a clean working tree and a `package.json` with a version, because they call `npm version`.
+
+Pushing a `v*` tag publishes the package and creates a GitHub Release with generated notes.
 
 ## Errors
 
