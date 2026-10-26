@@ -47,6 +47,7 @@ function releaseFromDevelop(kind: ReleaseKind): void {
   git("push");
   git("checkout develop");
   git("pull origin main");
+  git("push");
   assertSynced(["main", "develop"]);
   console.log(`\n✅ ${kind} release complete!\n`);
 }

@@ -15,6 +15,55 @@ function gith(cwd: string, args: string[]) {
 }
 
 describe("release", () => {
+  test("minor release syncs the merge commit to both origin branches", () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "gith-release-sync-"));
+    try {
+      const repo = path.join(tmp, "repo");
+      const remote = path.join(tmp, "remote.git");
+      fs.mkdirSync(repo);
+      git(tmp, ["init", "--bare", remote]);
+      git(repo, ["init", "-b", "main"]);
+      git(repo, ["config", "user.email", "test@example.com"]);
+      git(repo, ["config", "user.name", "Test"]);
+      fs.writeFileSync(
+        path.join(repo, "package.json"),
+        JSON.stringify({
+          name: "gith-release-test",
+          version: "0.1.0",
+          scripts: {
+            version: `bun run "${CLI}" changelog --no-commit && git add -- CHANGELOG.md`,
+          },
+        }),
+      );
+      fs.writeFileSync(path.join(repo, "CHANGELOG.md"), "# Changelog\n");
+      git(repo, ["add", "."]);
+      git(repo, ["commit", "-m", "initial"]);
+      git(repo, ["tag", "v0.1.0"]);
+      git(repo, ["remote", "add", "origin", remote]);
+      git(repo, ["push", "-u", "origin", "main"]);
+      git(repo, ["switch", "-c", "develop"]);
+      git(repo, ["push", "-u", "origin", "develop"]);
+
+      const result = gith(repo, ["release", "--minor"]);
+      const main = git(repo, [
+        "ls-remote",
+        "origin",
+        "refs/heads/main",
+      ]).stdout.split("\t")[0];
+      const develop = git(repo, [
+        "ls-remote",
+        "origin",
+        "refs/heads/develop",
+      ]).stdout.split("\t")[0];
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain("✅ minor release complete!");
+      expect(main).toBe(develop);
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  }, 60_000);
+
   test("npm version commits the changelog with the package bump", () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "gith-version-"));
     try {
