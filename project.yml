@@ -1,5 +1,4 @@
 type: cli
-slug: tertium-gith
 display_name:
   en: gith
 short_name: gith
@@ -22,8 +21,12 @@ team:
     roles:
       - owner
       - developer
+platforms:
+  npm:
+    settings:
+      name: "@tertium/gith"
 distribution:
   - npm
 data_collected: none
-listed_on:
+publish_on:
   - https://tertiumnon.github.io

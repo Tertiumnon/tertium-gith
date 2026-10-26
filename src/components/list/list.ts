@@ -1,5 +1,6 @@
 import { onlyOne, parseLimit } from "../args/args";
 import type { Flags } from "../args/args.types";
+import { assertAllowedFlags } from "../args/args.utils";
 import { captureArgs } from "../git/git";
 import { compare, parseSemver } from "../versions/versions";
 import { DEFAULT_LIMIT, GORLUM } from "./list.constants";
@@ -27,6 +28,11 @@ export function tagPairs(local: string[], origin: string[]): TagPair[] {
 
 // gith list --tags | --commits, showing the first -limit rows (default 5).
 export function list(flags: Flags): void {
+  assertAllowedFlags(
+    flags,
+    ["tags", "commits", "stashes", "pockets", "graph", "limit"],
+    "list",
+  );
   const kind = onlyOne(flags, ["tags", "commits", "stashes", "pockets"]);
   if (!kind)
     throw new Error(

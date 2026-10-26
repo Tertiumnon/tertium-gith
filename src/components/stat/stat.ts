@@ -1,5 +1,6 @@
 import { onlyOne, parseLimit } from "../args/args";
 import type { Flags } from "../args/args.types";
+import { assertAllowedFlags } from "../args/args.utils";
 import { captureArgs } from "../git/git";
 import { DAYS, PERIODS } from "./stat.constants";
 import type { Commit, Period, Range, Row } from "./stat.types";
@@ -202,6 +203,7 @@ export function table(rows: Row[]): string {
 // gith stat [--current-year | --current-month | --current-week | --last-year | --last-month |
 // --last-week | --overall] [-limit <n>]: fun facts about the current branch's history.
 export function stat(flags: Flags): void {
+  assertAllowedFlags(flags, [...PERIODS, "limit"], "stat");
   const period: Period = onlyOne(flags, PERIODS) ?? "overall";
   const limit = parseLimit(flags);
   const range = periodRange(period, new Date());

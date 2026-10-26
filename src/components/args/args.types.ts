@@ -9,6 +9,4 @@ export type Flags = Map<string, string>;
 //   switch  --name only, stored as "true"; -name is an error
 //   auto    -name <value> for an explicit value, or --name alone for an automatic choice,
 //           stored as "" (for example --branch opens the picker)
-//   optional  like auto, but -name alone is also allowed, stored as "" (-r, -h: the newest
-//           release or hotfix, or the next version when creating)
-export type Kind = "value" | "switch" | "auto" | "optional";
+export type Kind = "value" | "switch" | "auto";

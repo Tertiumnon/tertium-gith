@@ -54,7 +54,10 @@ export function capture(args: string): string {
 }
 
 export function hasOnOrigin(branch: string): boolean {
-  return capture(`ls-remote --heads origin ${branch}`) !== "";
+  return (
+    captureArgs(["ls-remote", "--heads", "origin", `refs/heads/${branch}`]) !==
+    ""
+  );
 }
 
 // True when commit `ancestor` is reachable from commit `descendant` (or they are the same).

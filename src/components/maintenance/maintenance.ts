@@ -1,5 +1,6 @@
 import { onlyOne, parseLimit } from "../args/args";
 import type { Flags } from "../args/args.types";
+import { assertAllowedFlags } from "../args/args.utils";
 import { createBranch, workBranchName } from "../flow/flow";
 import { newestContainer } from "../flow/flow.utils";
 import {
@@ -59,6 +60,7 @@ export async function switchBranch(flags: Flags): Promise<void> {
     switchToCommit(commit);
     return;
   }
+  assertAllowedFlags(flags, ["branch"], "switch");
   const branch = requireBranch(flags, "switch");
   const from = isDetached() ? "HEAD" : undefined;
   const exists = (name: string) => hasLocal(name) || hasOnOrigin(name);
@@ -161,6 +163,20 @@ export function detachedOptions(
 // gith remove --branch [--local | --remote]: lists the branches and asks which to remove.
 // Without -b, remove picks from the list, the same as --branch.
 export async function remove(flags: Flags): Promise<void> {
+  assertAllowedFlags(
+    flags,
+    [
+      "branch",
+      "local",
+      "remote",
+      "obsolete",
+      "detached",
+      "days",
+      "all",
+      "limit",
+    ],
+    "remove",
+  );
   const name = flags.get("branch") ?? "";
   const side = onlyOne(flags, ["local", "remote"]);
   const scope: Scope = side ?? "pair";

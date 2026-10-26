@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.4.0 - 2026-10-26
+
+- fix: stage changelog in version lifecycle
+- fix command rules and refresh gith branding
+- feat: style commit graph with colored lanes and details
+- feat: add informative push and pull commands and prompt-free save
+- docs(manifest): update project.yml to the flat layout
+- feat(setup): add gith setup -n npm
+- docs(manifest): update project.yml to the flat layout
+- chore(project): use block style project.yml
+- feat(setup): add gith setup -n npm
+
 ## 0.3.3 - 2026-10-21
 
 - feat(save): commit locally, ask before amend and push; feat(sync): sync current branch

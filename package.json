@@ -1,6 +1,6 @@
 {
   "name": "@tertium/gith",
-  "version": "0.3.3",
+  "version": "0.4.0",
   "description": "Git helper: branch flow with goal branches, release and hotfix containers, and everyday git commands.",
   "type": "module",
   "bin": {
@@ -22,7 +22,7 @@
     "release:patch": "node bin/gith.js release --patch",
     "release:minor": "node bin/gith.js release --minor",
     "release:major": "node bin/gith.js release --major",
-    "version": "bun run build && node bin/gith.js changelog"
+    "version": "bun run build && node bin/gith.js changelog --no-commit && git add -- CHANGELOG.md"
   },
   "license": "MIT",
   "author": "Vitalii Balabanov",
