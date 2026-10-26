@@ -22,7 +22,7 @@
     "release:patch": "node bin/gith.js release --patch",
     "release:minor": "node bin/gith.js release --minor",
     "release:major": "node bin/gith.js release --major",
-    "version": "bun run build && node bin/gith.js changelog"
+    "version": "bun run build && node bin/gith.js changelog --no-commit && git add -- CHANGELOG.md"
   },
   "license": "MIT",
   "author": "Vitalii Balabanov",

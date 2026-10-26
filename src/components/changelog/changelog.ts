@@ -29,8 +29,8 @@ function commitSubjectsSince(tag: string | null): string[] {
 
 // gith changelog [--dry-run]: prepends an entry for the version in package.json to CHANGELOG.md,
 // built from the commits since the last tag. Run it from the npm version script, so the file is
-// staged together with the version bump:
-//   "version": "gith changelog"
+// staged with the version bump:
+//   "version": "gith changelog --no-commit && git add -- CHANGELOG.md"
 export function changelog(flags: Flags): void {
   const noCommit = flags.has("no-commit");
   if (flags.size > (noCommit ? 1 : 0))

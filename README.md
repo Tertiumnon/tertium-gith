@@ -208,7 +208,7 @@ Containers (`develop`, `main`, `release/*`, `hotfix/*`) can't be merged from, an
 Run as `gith release --patch`, `--minor` or `--major`.
 
 - **`patch`** runs from `main`: bumps the version, pushes with tags, then rebases `develop` onto `main`. The push back to `develop` uses `--force-with-lease`, so it refuses to overwrite a `develop` that moved on origin.
-- **`minor` and `major`** run from `develop`: bump the version, push with tags, merge `develop` into `main`, then bring `main` back to `develop`.
+- **`minor` and `major`** run from `develop`: bump the version with its changelog entry, push with tags, merge `develop` into `main`, then bring `main` back to `develop`.
 
 Both need a clean working tree and a `package.json` with a version, because they call `npm version`.
 
