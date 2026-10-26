@@ -2,14 +2,9 @@ import { parseLimit } from "../args/args";
 import type { Flags } from "../args/args.types";
 import { assertCleanTree, captureArgs, gitArgs, isDryRun } from "../git/git";
 import { confirm } from "../prompt/prompt";
+import { push } from "../remote/remote";
 import { isContainer } from "../rules/rules";
-import {
-  askMessage,
-  assertNotPushed,
-  currentBranch,
-  noFlags,
-  remoteSha,
-} from "./history.utils";
+import { assertNotPushed, currentBranch, noFlags } from "./history.utils";
 
 // gith update: merges origin/develop into this work branch, so it has the latest develop.
 export function update(flags: Flags): void {
@@ -41,58 +36,38 @@ export function undo(flags: Flags): void {
   gitArgs(["reset", "--soft", "HEAD~1"]);
 }
 
-// gith save: commits the staged changes locally and never pushes without asking. Unstaged changes are
-// staged first (git add -A): one file silently, several after asking; --all stages without asking.
-// With commits of its own, it asks to amend the previous commit: yes folds the changes into it (-m
-// replaces its message), no creates a new commit, asking for its message unless -m is given. Then it
-// asks to push, or to force-push when it amended a commit origin has.
-export async function save(flags: Flags): Promise<void> {
+export const save = (flags: Flags): void => {
   const message = flags.get("message");
   const extra = [...flags.keys()].filter(
-    (key) => key !== "message" && key !== "all",
+    (key) => key !== "message" && key !== "all" && key !== "&push",
   );
-  if (extra.length > 0)
-    throw new Error("usage: gith save [-m <message>] [--all]");
-  const branch = currentBranch();
+  if (extra.length > 0 || message === undefined || message.trim() === "")
+    throw new Error('usage: gith save -m <message> [--all] ["--&push"]');
+  currentBranch();
   const unstaged = captureArgs(["add", "-A", "--dry-run"])
     .split("\n")
     .filter(Boolean);
-  const stageAll =
-    flags.has("all") ||
-    unstaged.length === 1 ||
-    (unstaged.length > 1 &&
-      (await confirm(`Stage all ${unstaged.length} changes first? [Y/n] `)));
+  const stageAll = flags.has("all") || unstaged.length === 1;
   if (stageAll && unstaged.length > 0) {
-    console.log(`Staging ${unstaged.length} unstaged change(s):`);
-    for (const line of unstaged) console.log(`  ${line}`);
+    process.stdout.write(
+      `Staging ${unstaged.length} unstaged change(s):\n${unstaged.join("\n")}\n`,
+    );
   }
   if (stageAll) gitArgs(["add", "-A"]);
-  if (captureArgs(["diff", "--cached", "--name-only"]) === "") {
-    throw new Error("nothing staged; stage the changes to save.");
-  }
-  const previous = captureArgs(["rev-parse", "HEAD"]);
-  const amend =
-    hasOwnCommit() && (await confirm("Amend the previous commit? [Y/n] "));
-  if (amend) {
-    gitArgs(
-      message
-        ? ["commit", "--amend", "-m", message]
-        : ["commit", "--amend", "--no-edit"],
+  if (
+    captureArgs(["diff", "--cached", "--name-only"]) === "" &&
+    !(isDryRun() && stageAll && unstaged.length > 0)
+  ) {
+    throw new Error(
+      "nothing staged; stage the changes with git add, or use gith save -m <message> --all.",
     );
-  } else {
-    gitArgs(["commit", "-m", message ?? (await askMessage())]);
   }
-  const rewrites = amend && remoteSha(branch) === previous;
-  const question = rewrites
-    ? `Force-push ${branch} to origin? [Y/n] `
-    : `Push ${branch} to origin? [Y/n] `;
-  if (!(await confirm(question))) {
-    console.log("Saved locally; not pushed.");
-    return;
-  }
-  if (rewrites) gitArgs(["push", "--force-with-lease", "origin", branch]);
-  else gitArgs(["push", "-u", "origin", branch]);
-}
+  gitArgs(["commit", "-m", message]);
+  process.stdout.write(
+    isDryRun() ? "Would save locally.\n" : "Saved locally.\n",
+  );
+  if (flags.has("&push")) push(new Map());
+};
 
 // gith squash -limit <n> [-m <message>]: combines the last n commits into one. Without -m the
 // result keeps the oldest of them: its message and author.
@@ -144,17 +119,4 @@ export async function squash(flags: Flags): Promise<void> {
   gitArgs(["reset", "--soft", `HEAD~${count}`]);
   if (message) gitArgs(["commit", "-m", message]);
   else gitArgs(["commit", "-C", oldest]);
-}
-
-// True when this branch has commits of its own: commits that origin's develop (or main) lacks.
-// Without one, HEAD belongs to the base branch, so save must not rewrite it.
-function hasOwnCommit(): boolean {
-  for (const base of ["origin/develop", "origin/main"]) {
-    try {
-      return captureArgs(["rev-list", "--count", `${base}..HEAD`]) !== "0";
-    } catch {
-      // This base does not exist here; try the next one.
-    }
-  }
-  return true;
 }

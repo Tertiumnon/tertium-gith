@@ -18,6 +18,7 @@ import {
 import { open } from "./components/open/open";
 import { setAssumeYes } from "./components/prompt/prompt";
 import { release } from "./components/release/release";
+import { pull, push } from "./components/remote/remote";
 import { setup } from "./components/setup/setup";
 import { stash, unstash } from "./components/stash/stash";
 import { stat } from "./components/stat/stat";
@@ -48,7 +49,7 @@ Start and finish work
 
 Fix history
   gith undo                          undo the last commit, keep its changes staged (not if pushed)
-  gith save [-m <msg>] [--all]       commit staged changes locally; stages unstaged changes first (one silently, several after asking; --all without asking), then asks to amend the previous commit (else asks for a message), then asks to push, or to force-push after an amend
+  gith save -m <msg> [--all] ["--&push"]  new commit without prompts; push only with "--&push"
   gith squash -limit <n> [-m <msg>]  combine the last n commits into one (keeps the oldest message)
 
 Save and reset work
@@ -83,6 +84,8 @@ Look at the repo
                                      period: --overall (default), --current-year|-month|-week, --last-year|-month|-week
 
 Remote and health
+  gith push [--all-branches]         push to origin, set tracking, report ahead/behind; never force
+  gith pull [--all-branches]         fast-forward from origin; refuse diverged histories
   gith sync                          fetch all remotes and tags, prune stale refs, then sync this branch with origin both ways
   gith sync --develop | --main       the same for develop or main
   gith sync develop:develop          two-way sync of one branch with origin: fetch it when behind, push it when ahead, stop when diverged
@@ -154,7 +157,13 @@ try {
       undo(parseFlags(rest));
       break;
     case "save":
-      await save(parseFlags(rest));
+      save(parseFlags(rest));
+      break;
+    case "push":
+      push(parseFlags(rest));
+      break;
+    case "pull":
+      pull(parseFlags(rest));
       break;
     case "squash":
       await squash(parseFlags(rest));

@@ -66,6 +66,8 @@ describe("switches: a double dash only", () => {
       "graph",
       "stashes",
       "obsolete",
+      "&push",
+      "all-branches",
     ]) {
       expect(parseFlags([`--${name}`]).get(name)).toBe("true");
     }
