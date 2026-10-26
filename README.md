@@ -13,7 +13,9 @@ gith: git-only branch flow CLI (goal branches, release/hotfix containers, synced
        d b
 ```
 
-Git helper: the branch flow from [git-convention](https://github.com/Tertiumnon/git-convention) (work branches named develop--<goal>, `release/*` and `hotfix/*` containers, merges that sync both sides with origin), plus everyday git commands: status, switch, update, undo, save, squash, stash, remove, list, tree, sync, clean, reset, open, doctor and stat. Any command takes `--dry-run` to show the git commands it would run. No dependencies beyond git and [Bun](https://bun.com).
+Git helper: the branch flow from [git-convention](https://github.com/Tertiumnon/git-convention) (work branches named develop--<goal>, `release/*` and `hotfix/*` containers, merges that sync both sides with origin), plus everyday git commands: status, switch, update, undo, save, squash, stash, remove, list, tree, push, pull, sync, clean, reset, open, doctor and stat. Any command takes `--dry-run` to show the git commands it would run. No dependencies beyond git and [Bun](https://bun.com).
+
+See [Command design rules](docs/RULES.md) before changing or adding commands and flags.
 
 > **Very early state (0.1.0).** Commands and flags may change without notice, and the tool has only been run against throwaway test repositories. Check the result with `git log` and `git status` before you push.
 
@@ -24,20 +26,21 @@ Git helper: the branch flow from [git-convention](https://github.com/Tertiumnon/
 gith create -b login-redirect       # work branch develop--login-redirect from develop; stays on the current branch
 gith create -r 1.2.0                # release/1.2.0 from develop
 gith create -h 1.2.1                # hotfix/1.2.1 from main
-gith create --release               # release, version = minor after the latest tag
-gith create --hotfix                # hotfix, version = patch after the latest tag
+gith create --release               # next release version from the latest tag
+gith create --hotfix                # next hotfix version from the latest tag
 gith switch                         # list local and origin branches, and switch to the one you pick
 gith switch -b login-redirect       # switch to develop--login-redirect, creating it from develop if it is missing
 gith switch -commit 3f2a1b9         # detach HEAD at that commit, to look at old code
 gith switch --release               # switch to the newest release/* (local or origin); -r 1.9.0 for one version
 gith switch --hotfix                # switch to the newest hotfix/* (local or origin); -h 1.2.1 for one version
 gith update                         # merge origin/develop into this work branch
-gith merge                          # this branch into develop
+gith merge --develop                # this branch into develop
 gith finish --current-release    # release the newest release/*: version, changelog, merge to main, tag, merge main to develop, then ask before deleting the branch
 gith finish --current-hotfix      # the same for the newest hotfix/*
 gith merge                          # pick the branch to merge, then the target from the list
 gith merge --main                   # this branch into main
-gith merge -r 1.2.0                 # this branch into release/1.2.0 (-r alone: the only release, or pick from the list)
+gith merge -r 1.2.0                 # this branch into release/1.2.0
+gith merge --release                # this branch into the only release, or pick one
 gith merge -h 1.2.1                 # this branch into hotfix/1.2.1
 gith merge --current-release        # this branch into the newest release/* (local or origin)
 gith merge --current-hotfix         # this branch into the newest hotfix/* (local or origin)
@@ -47,7 +50,7 @@ gith release --major                # npm version major, from develop into main
 
 # Fix history
 gith undo                           # undo the last commit, keep its changes staged (not if pushed)
-gith save [-m "msg"] [--all]         # stages unstaged changes first (--all without asking), commits locally, asks to amend the previous commit or to make a new one, then asks to push (force-push after an amend)
+gith save -m "msg" [--all] ["--&push"] # new commit without prompts; push only with "--&push"
 gith squash -limit 3 [-m "msg"]     # combine the last 3 commits into one (keeps the oldest message)
 
 # Save and reset work
@@ -89,6 +92,8 @@ gith stat                           # fun facts about this branch: biggest commi
 gith stat --last-week -limit 50     # the same for last week, looking at no more than 50 commits
 
 # Remote and health
+gith push [--all-branches]          # push to origin with tracking and ahead/behind counts; never force
+gith pull [--all-branches]          # fast-forward from origin; stop on divergence
 gith sync                           # fetch all remotes and tags, prune stale refs, then sync this branch with origin both ways
 gith sync --develop | --main         # the same for develop or main
 gith sync develop:develop           # two-way sync of one branch with origin
@@ -111,34 +116,39 @@ gith list --tags --verbose
 
 ## Flags
 
-One rule applies to every command: **a single dash always takes a value, and a double dash never does.** So `-limit 10` is right, and `--limit 10` and `-remote` are errors that name the right spelling.
+One rule applies to every command: **a single dash always takes a value, and a double dash never does.** So `-limit 10` is right, while `--limit 10`, `-remote`, `-r` and `-h` without values are errors. Use `--release` or `--hotfix` for automatic selection.
 
 | Flag | Kind | Used by |
 | --- | --- | --- |
 | `-b <name>`, `-branch <name>` | value | `create`, `switch`, `remove` |
 | `--branch` | alone: open the picker | `remove` |
-| `-r <version>`, `-release <version>` | value | `create`, `merge` |
-| `-r` alone | the only release, or a pick from the list | `merge` |
-| `--release` | alone: version from the latest tag | `create` |
+| `-r <version>`, `-release <version>` | value | `create`, `switch`, `merge` |
+| `--release` | automatic version in `create`; newest container in `switch`; only container or picker in `merge` | `create`, `switch`, `merge` |
 | `--main` | alone: merge into main | `merge` |
 | `--current-release`, `--current-hotfix` | switch: merge into the newest release or hotfix | `merge` |
-| `-h <version>`, `-hotfix <version>` | value | `create`, `merge` |
-| `-h` alone | the only hotfix, or a pick from the list | `merge` |
-| `--hotfix` | alone: version from the latest tag | `create` |
-| `-limit <n>` | value | `squash`: how many commits to combine |
-| `-m <msg>`, `-message <msg>` | value | `squash` |
+| `-h <version>`, `-hotfix <version>` | value | `create`, `switch`, `merge` |
+| `--hotfix` | automatic version in `create`; newest container in `switch`; only container or picker in `merge` | `create`, `switch`, `merge` |
+| `-limit <n>` | value | `squash`: commits to combine; listings and `stat`: rows or commits to show |
+| `-m <msg>`, `-message <msg>` | value | `save` (required), `squash` |
+| `--all` | switch | `save`: stage all changes |
+| `"--&push"` | switch | `save`: push after committing |
+| `--all-branches` | switch | `push`, `pull`: all local branches |
 | `-n <name>`, `-name <name>` | value | `stash` |
+| `-commit <sha>` | value | `switch`: detach at a commit |
+| `-file <pattern>`, `-change <text>` | value | `find` |
 | `-l <n>`, `-limit <n>` | value, positive whole number | every listing: `list`, `tree`, the picker |
 | `--patch`, `--minor`, `--major` | switch | `release` |
 | `--overall`, `--current-year`, `--current-month`, `--current-week`, `--last-year`, `--last-month`, `--last-week` | switch, one at a time | `stat` |
 | `--local`, `--remote` | switch | `remove` (both sides when neither is given) |
 | `--obsolete`, `--detached` | switch | `remove` |
+| `--force` | switch | `setup`: replace an existing hook |
+| `--no-commit` | switch | `changelog`: update the file without committing |
 | `-days <n>` | value | `remove --obsolete` |
 | `--tags`, `--commits`, `--graph`, `--stashes`, `--pockets` | switch | `list` (also `show`) |
 | `--verbose` | switch | every command |
 | `--dry-run` | switch | every command |
 
-Commands that choose between flags (for example `create -b`, `-r` and `-h`, or `list --tags` and `--commits`) accept only one of them. `-limit` caps listings and `stat`, and on `squash` it sets how many commits to combine. `-message` only applies to `squash`.
+Commands that choose between flags (for example `create -b`, `-r` and `-h`, or `list --tags` and `--commits`) accept only one of them. `-limit` caps listings and `stat`, and on `squash` it sets how many commits to combine. `-message` applies to `save` and `squash`.
 
 `--verbose` and `--dry-run` can go anywhere on the line:
 - `--dry-run` prints each git command that would change something, and runs none of them. Read-only checks still run, so a refusal (for example, "HEAD is already on origin") appears in a dry run too. `clean` and `reset` also list the files they would remove or discard.
@@ -153,7 +163,8 @@ Commands that choose between flags (for example `create -b`, `-r` and `-h`, or `
 - **`status`** prints the branch and how far it is ahead of or behind its origin branch, then counts staged, unstaged, untracked and conflicting files. It changes nothing.
 - **`update`** fetches `origin/develop` and merges it into the current work branch. It needs a clean working tree and refuses containers. If the merge conflicts, it aborts the merge and says so. It does not push.
 - **`undo`** runs `git reset --soft HEAD~1`: the last commit is removed and its changes stay staged. It refuses when HEAD is already on origin, because undoing a pushed commit needs a force-push.
-- **`save`** commits the staged changes locally and never pushes without asking. When changes are not staged yet, it stages them first: a single file is staged silently, and with several it asks `Stage all N changes first? [Y/n]` (a no keeps only what is staged; `--all` stages without asking). If the branch has commits of its own (commits origin's `develop`, or `main`, lacks), it asks `Amend the previous commit? [Y/n]`. Yes folds the changes into the last commit with `git commit --amend --no-edit`, keeping its message; `-m` replaces it. No, or no own commits, creates a new commit, asking for its message (an empty answer is refused, and `-m` skips the question). It refuses with nothing staged. Then it asks `Push <branch> to origin? [Y/n]`, a plain `git push -u origin <branch>`. After an amend of a commit origin already has, it asks `Force-push <branch> to origin? [Y/n]` instead, which runs `git push --force-with-lease origin <branch>` and refuses if origin moved since your last fetch. A no leaves the commit local. The questions need a terminal, so a script must pass `--yes`, and a commit made before the push question stays local if that question is not answered.
+- **`push` / `pull`** work with the current branch and its same-named branch on origin. They report fresh ahead/behind counts and stop with instructions when histories diverge. Push sets upstream tracking and publishes missing branches; it never force-pushes. Pull requires clean tracked files, fast-forwards only, and points to `gith push` when local commits remain. `--all-branches` applies to every local branch, preflighting all before updating any. Push sends them atomically (origin must support atomic pushes); pull requires each to exist on origin and updates branches without switching. Branches checked out in other worktrees cannot be updated by pull. Remote-only branches are not created. Pull may leave earlier branches updated if a later Git operation fails; it never rolls back successful fast-forwards. Dry runs print actions without fetching or changing refs.
+- **`save`** requires a nonempty `-m` and always creates a new commit, without prompts or amending. It stages a single unstaged file automatically; use `--all` to stage several, or stage your selection with `git add`. With nothing staged it fails. It saves locally unless `"--&push"` is supplied, which runs `gith push` after committing. Quote the flag because shells interpret `&`. A failed push leaves the new commit saved locally; retry with `gith push`.
 - **`stash`** saves changes with `git stash push --include-untracked`. `-n` names the stash. It refuses when there is nothing to save.
 - **`find`** (also `search`) lists the newest commits on this branch that match every filter given:
   - `-commit <text>` matches the commit message, ignoring case, and the text is literal.
@@ -176,7 +187,7 @@ Commands that choose between flags (for example `create -b`, `-r` and `-h`, or `
 - **`sync <branch>:<branch>`** (for example `sync develop:develop`) is the same as `sync --develop` for any branch name. If origin is ahead, it fetches the branch like `git fetch origin develop:develop`; if local is ahead, it pushes it; if it is the same, it says so. A checked-out branch is fast-forwarded with `merge --ff-only`. Diverged branches stop with an error, and nothing is forced. A branch missing on one side is created there. `sync develop` alone works too.
 - **`tree`** lists the working trees of the repository (`git worktree list`): each path, its branch or `(detached)`, and its short HEAD. The current one is marked `*`, and bare, locked or prunable trees are noted. `-limit <n>` caps the rows; all are shown by default.
 - **`list --tags`** shows every tag once, with yes/no columns for local and origin, so you can see which tags are unpushed or missing locally. Version tags are listed newest first, and only the first 5 are shown by default. `-limit <n>` (or `-l <n>`) changes that and adds a note when rows are left out.
-- **`list --commits`** shows the newest commits on the current branch, one per line: short hash, date, author and subject. With `--graph` it draws the branch graph instead. It shows 5 by default; `-l <n>` (or `-limit <n>`) changes that and must be a positive whole number. `-limit` only applies to listings. `gith list` with no flag prints usage.
+- **`list --commits`** shows the newest commits on the current branch, one per line: short hash, date, author and subject. With `--graph` it draws a framed branch graph with colored topology lanes, highlighted hashes and branch/tag labels, and author/date rows. Colors are enabled in terminals and disabled for pipes, `NO_COLOR`, or `TERM=dumb`. Git preserves merge topology; history remains scoped to the current branch. It shows 5 by default; `-l <n>` (or `-limit <n>`) changes that and must be a positive whole number. `-limit` only applies to listings. `gith list` with no flag prints usage.
 - **`clean`** runs `git clean -fd`. It permanently removes untracked files and directories, but keeps ignored files.
 - **`reset`** runs `git reset --hard` (discards staged and unstaged edits on this branch), then `git clean -fd`. It cannot be undone, so commit or stash first. It does not move the branch to origin.
 

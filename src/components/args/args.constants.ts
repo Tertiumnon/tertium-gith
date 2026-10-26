@@ -2,8 +2,8 @@ import type { Kind } from "./args.types";
 
 export const SPECS = new Map<string, Kind>([
   ["branch", "auto"],
-  ["release", "optional"],
-  ["hotfix", "optional"],
+  ["release", "auto"],
+  ["hotfix", "auto"],
   ["limit", "value"],
   ["message", "value"],
   ["name", "value"],
@@ -29,6 +29,8 @@ export const SPECS = new Map<string, Kind>([
   ["pockets", "switch"],
   ["detached", "switch"],
   ["all", "switch"],
+  ["&push", "switch"],
+  ["all-branches", "switch"],
   ["no-commit", "switch"],
   ["force", "switch"],
   ["overall", "switch"],

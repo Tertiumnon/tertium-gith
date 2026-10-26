@@ -133,6 +133,43 @@ describe("list", () => {
       }
     }, 60_000);
 
+    test("graph shows merge lanes, refs and author dates without ANSI in pipes", () => {
+      const { tmp, repo } = repoWithCommits(1);
+      try {
+        git(repo, ["switch", "-c", "feature"]);
+        fs.writeFileSync(path.join(repo, "feature.txt"), "feature");
+        git(repo, ["add", "."]);
+        git(repo, ["commit", "-m", "feature work"]);
+        git(repo, ["switch", "main"]);
+        fs.writeFileSync(path.join(repo, "main.txt"), "main");
+        git(repo, ["add", "."]);
+        git(repo, ["commit", "-m", "main work"]);
+        git(repo, ["merge", "--no-ff", "feature", "-m", "merge feature"]);
+        git(repo, ["tag", "v1.0.0"]);
+        git(repo, ["config", "color.ui", "always"]);
+        const result = cli(repo, ["list", "--commits", "--graph", "-l", "4"]);
+        expect(result.status).toBe(0);
+        expect(result.stdout).toContain("╭─ COMMIT GRAPH");
+        expect(result.stdout).toContain("main · branch history · limit 4");
+        expect(result.stdout).toContain("HEAD -> main");
+        expect(result.stdout).toContain("tag: v1.0.0");
+        expect(result.stdout).toContain("feature work");
+        expect(result.stdout).toContain("main work");
+        expect(result.stdout).toContain("merge feature");
+        expect(result.stdout).toContain("|\\");
+        expect(result.stdout).toMatch(
+          /└─ Test · \d{4}-\d{2}-\d{2} \d{2}:\d{2}/,
+        );
+        expect(result.stdout).not.toContain("\x1b[");
+        const one = cli(repo, ["show", "--commits", "--graph", "-l", "1"]);
+        expect(one.stdout).toContain("merge feature");
+        expect(one.stdout).not.toContain("feature work");
+        expect(one.stdout).not.toContain("main work");
+      } finally {
+        fs.rmSync(tmp, { recursive: true, force: true });
+      }
+    }, 60_000);
+
     test("rejects a bad limit and a limit with --tags; reports an empty repository", () => {
       const { tmp, repo } = repoWithCommits(1);
       try {
