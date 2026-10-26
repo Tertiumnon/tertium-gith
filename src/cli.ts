@@ -1,5 +1,6 @@
 import { exit } from "node:process";
 import { onlyOne, parseFlags } from "./components/args/args";
+import { assertAllowedFlags } from "./components/args/args.utils";
 import { changelog } from "./components/changelog/changelog";
 import { doctor } from "./components/doctor/doctor";
 import { find } from "./components/find/find";
@@ -32,17 +33,18 @@ Start and finish work
   gith create -b <branch>            work branch develop--<branch> from develop (no switch)
   gith create -r <version>           release/<version> from develop
   gith create -h <version>           hotfix/<version> from main
-  gith create --release | --hotfix   version from the latest tag: minor for release, patch for hotfix
+  gith create --release | --hotfix   next version from the latest tag
   gith switch                        list local and origin branches, and switch to the one picked
   gith switch -b <branch>            switch to a branch, creating develop--<branch> from develop if missing (on a detached HEAD: <branch> from that commit)
   gith switch -commit <sha>          detach HEAD at a commit, to look at it (tracked files must be clean)
-  gith switch --release | --hotfix   switch to the newest release/* or hotfix/* (local or origin); -r / -h do the same; -r <v> / -h <v> for one version
+  gith switch --release | --hotfix   switch to the newest release/* or hotfix/* (local or origin); -r <v> | -h <v> for one version
   gith update                        merge origin/develop into this work branch
   gith finish --current-release | --current-hotfix  release the newest release/* or hotfix/*: version, changelog, merge to main, tag, back to develop
   gith merge --develop               merge this branch into develop
   gith merge --main                  merge this branch into main
   gith merge                         pick the branch to merge, then the target (main, develop, release/*, hotfix/*)
-  gith merge [-r <v> | -h <v>]       merge this branch into release/<v> or hotfix/<v>; without a version, the only one or a pick from the list
+  gith merge --release | --hotfix    merge into the only matching container, or pick one
+  gith merge -r <v> | -h <v>         merge into release/<v> or hotfix/<v>
   gith merge --current-release       merge this branch into the newest release (local or origin)
   gith merge --current-hotfix        merge this branch into the newest hotfix (local or origin)
   gith release --patch | --minor | --major   bump the version and publish
@@ -80,8 +82,8 @@ Look at the repo
   gith tree [-l <n>]                 working trees: path, branch, HEAD (current marked *)
   gith find|search [-commit <text>] [-file <pattern>] [-change <text>] [--regex] [-limit <n>]
                                      newest commits on this branch matching every filter (default 5)
-  gith stat [period] [-limit <n>]    fun facts about this branch: biggest commit, busiest day, streaks
-                                     period: --overall (default), --current-year|-month|-week, --last-year|-month|-week
+  gith stat [--overall | --current-year | --current-month | --current-week | --last-year | --last-month | --last-week] [-limit <n>]
+                                     fun facts about this branch: biggest commit, busiest day, streaks
 
 Remote and health
   gith push [--all-branches]         push to origin, set tracking, report ahead/behind; never force
@@ -101,10 +103,12 @@ Help
   --dry-run                          (any command) print the git commands that would run, without running them
   --yes                              (any command) answer yes to every question (for scripts)
 
-Flags: a single dash always takes a value, a double dash never does.
-  -b -r -h -l -m -n -limit -message -name -release -hotfix -branch   take a value, e.g. -limit 10
-  --patch --minor --major --local --remote --obsolete --detached --tags --commits --graph --stashes --pockets   switches
-  --branch --release --hotfix alone pick automatically (picker, latest tag)
+Flags: every single-dash flag requires a value; double-dash flags never take one.
+  -b -r -h -l -m -n -limit -message -name -branch -release -hotfix -commit -file -change -days   take values
+  --patch --minor --major --local --remote --obsolete --detached --tags --commits --graph --stashes --pockets --branch --regex
+  --develop --main --current-release --current-hotfix --all --&push --all-branches --no-commit --force
+  --overall --current-year --current-month --current-week --last-year --last-month --last-week   switches
+  --branch lists removable branches; --release / --hotfix choose a version or branch by command context
   -limit caps listings and stat (or -l); -days sets the age for remove --obsolete`;
 
 // --verbose and --dry-run are global: they are removed here, so no command has to parse them.
@@ -201,6 +205,7 @@ try {
       break;
     case "release": {
       const flags = parseFlags(rest);
+      assertAllowedFlags(flags, ["patch", "minor", "major"], "release");
       const kind = onlyOne(flags, ["patch", "minor", "major"]);
       if (!kind)
         throw new Error("usage: gith release --patch | --minor | --major");

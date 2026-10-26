@@ -30,6 +30,9 @@ describe("release", () => {
       expect(gith(repo, ["release"]).stderr).toContain(
         "usage: gith release --patch | --minor | --major",
       );
+      expect(gith(repo, ["release", "--patch", "--local"]).stderr).toContain(
+        "not supported by gith release",
+      );
 
       fs.writeFileSync(path.join(repo, "a.txt"), "changed");
       const dirty = gith(repo, ["release", "--patch"]);

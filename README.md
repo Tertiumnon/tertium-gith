@@ -13,7 +13,9 @@ gith: git-only branch flow CLI (goal branches, release/hotfix containers, synced
        d b
 ```
 
-Git helper: the branch flow from [git-convention](https://github.com/Tertiumnon/git-convention) (work branches named develop--<goal>, `release/*` and `hotfix/*` containers, merges that sync both sides with origin), plus everyday git commands: status, switch, update, undo, save, squash, stash, remove, list, tree, sync, clean, reset, open, doctor and stat. Any command takes `--dry-run` to show the git commands it would run. No dependencies beyond git and [Bun](https://bun.com).
+Git helper: the branch flow from [git-convention](https://github.com/Tertiumnon/git-convention) (work branches named develop--<goal>, `release/*` and `hotfix/*` containers, merges that sync both sides with origin), plus everyday git commands: status, switch, update, undo, save, squash, stash, remove, list, tree, push, pull, sync, clean, reset, open, doctor and stat. Any command takes `--dry-run` to show the git commands it would run. No dependencies beyond git and [Bun](https://bun.com).
+
+See [Command design rules](docs/RULES.md) before changing or adding commands and flags.
 
 > **Very early state (0.1.0).** Commands and flags may change without notice, and the tool has only been run against throwaway test repositories. Check the result with `git log` and `git status` before you push.
 
@@ -24,20 +26,21 @@ Git helper: the branch flow from [git-convention](https://github.com/Tertiumnon/
 gith create -b login-redirect       # work branch develop--login-redirect from develop; stays on the current branch
 gith create -r 1.2.0                # release/1.2.0 from develop
 gith create -h 1.2.1                # hotfix/1.2.1 from main
-gith create --release               # release, version = minor after the latest tag
-gith create --hotfix                # hotfix, version = patch after the latest tag
+gith create --release               # next release version from the latest tag
+gith create --hotfix                # next hotfix version from the latest tag
 gith switch                         # list local and origin branches, and switch to the one you pick
 gith switch -b login-redirect       # switch to develop--login-redirect, creating it from develop if it is missing
 gith switch -commit 3f2a1b9         # detach HEAD at that commit, to look at old code
 gith switch --release               # switch to the newest release/* (local or origin); -r 1.9.0 for one version
 gith switch --hotfix                # switch to the newest hotfix/* (local or origin); -h 1.2.1 for one version
 gith update                         # merge origin/develop into this work branch
-gith merge                          # this branch into develop
+gith merge --develop                # this branch into develop
 gith finish --current-release    # release the newest release/*: version, changelog, merge to main, tag, merge main to develop, then ask before deleting the branch
 gith finish --current-hotfix      # the same for the newest hotfix/*
 gith merge                          # pick the branch to merge, then the target from the list
 gith merge --main                   # this branch into main
-gith merge -r 1.2.0                 # this branch into release/1.2.0 (-r alone: the only release, or pick from the list)
+gith merge -r 1.2.0                 # this branch into release/1.2.0
+gith merge --release                # this branch into the only release, or pick one
 gith merge -h 1.2.1                 # this branch into hotfix/1.2.1
 gith merge --current-release        # this branch into the newest release/* (local or origin)
 gith merge --current-hotfix         # this branch into the newest hotfix/* (local or origin)
@@ -113,31 +116,33 @@ gith list --tags --verbose
 
 ## Flags
 
-One rule applies to every command: **a single dash always takes a value, and a double dash never does.** So `-limit 10` is right, and `--limit 10` and `-remote` are errors that name the right spelling.
+One rule applies to every command: **a single dash always takes a value, and a double dash never does.** So `-limit 10` is right, while `--limit 10`, `-remote`, `-r` and `-h` without values are errors. Use `--release` or `--hotfix` for automatic selection.
 
 | Flag | Kind | Used by |
 | --- | --- | --- |
 | `-b <name>`, `-branch <name>` | value | `create`, `switch`, `remove` |
 | `--branch` | alone: open the picker | `remove` |
-| `-r <version>`, `-release <version>` | value | `create`, `merge` |
-| `-r` alone | the only release, or a pick from the list | `merge` |
-| `--release` | alone: version from the latest tag | `create` |
+| `-r <version>`, `-release <version>` | value | `create`, `switch`, `merge` |
+| `--release` | automatic version in `create`; newest container in `switch`; only container or picker in `merge` | `create`, `switch`, `merge` |
 | `--main` | alone: merge into main | `merge` |
 | `--current-release`, `--current-hotfix` | switch: merge into the newest release or hotfix | `merge` |
-| `-h <version>`, `-hotfix <version>` | value | `create`, `merge` |
-| `-h` alone | the only hotfix, or a pick from the list | `merge` |
-| `--hotfix` | alone: version from the latest tag | `create` |
-| `-limit <n>` | value | `squash`: how many commits to combine |
+| `-h <version>`, `-hotfix <version>` | value | `create`, `switch`, `merge` |
+| `--hotfix` | automatic version in `create`; newest container in `switch`; only container or picker in `merge` | `create`, `switch`, `merge` |
+| `-limit <n>` | value | `squash`: commits to combine; listings and `stat`: rows or commits to show |
 | `-m <msg>`, `-message <msg>` | value | `save` (required), `squash` |
 | `--all` | switch | `save`: stage all changes |
 | `"--&push"` | switch | `save`: push after committing |
 | `--all-branches` | switch | `push`, `pull`: all local branches |
 | `-n <name>`, `-name <name>` | value | `stash` |
+| `-commit <sha>` | value | `switch`: detach at a commit |
+| `-file <pattern>`, `-change <text>` | value | `find` |
 | `-l <n>`, `-limit <n>` | value, positive whole number | every listing: `list`, `tree`, the picker |
 | `--patch`, `--minor`, `--major` | switch | `release` |
 | `--overall`, `--current-year`, `--current-month`, `--current-week`, `--last-year`, `--last-month`, `--last-week` | switch, one at a time | `stat` |
 | `--local`, `--remote` | switch | `remove` (both sides when neither is given) |
 | `--obsolete`, `--detached` | switch | `remove` |
+| `--force` | switch | `setup`: replace an existing hook |
+| `--no-commit` | switch | `changelog`: update the file without committing |
 | `-days <n>` | value | `remove --obsolete` |
 | `--tags`, `--commits`, `--graph`, `--stashes`, `--pockets` | switch | `list` (also `show`) |
 | `--verbose` | switch | every command |

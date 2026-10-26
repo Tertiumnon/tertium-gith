@@ -2,6 +2,7 @@ import { execSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { onlyOne } from "../args/args";
 import type { Flags } from "../args/args.types";
+import { assertAllowedFlags } from "../args/args.utils";
 import { changelog } from "../changelog/changelog";
 import { parsePackageVersion } from "../changelog/changelog.utils";
 import {
@@ -26,13 +27,14 @@ import {
   open,
 } from "./flow.utils";
 
-// gith create -b <branch> | -r [version] | -h [version]
+// gith create -b <branch> | -r <version> | -h <version> | --release | --hotfix
 // Creates the branch and pushes it, but never switches: the current branch stays checked out.
 export function create(flags: Flags): void {
+  assertAllowedFlags(flags, ["branch", "release", "hotfix"], "create");
   const kind = onlyOne(flags, ["branch", "release", "hotfix"]);
   if (!kind)
     throw new Error(
-      "usage: gith create -b <branch> | -r [version] | -h [version]",
+      "usage: gith create -b <branch> | -r <version> | -h <version> | --release | --hotfix",
     );
   const value = flags.get(kind) ?? "";
   if (kind === "branch") {
@@ -46,8 +48,20 @@ export function create(flags: Flags): void {
 // gith merge [-r <version> | -h <version>]: merges this branch into develop by default.
 // gith merge --main: merges this branch into main. Without flags, asks which branch to merge and
 // which branch to merge it into.
-// -r and -h without a version pick among the release or hotfix branches; one is used directly.
+// --release and --hotfix pick among matching branches; -r and -h select a version directly.
 export async function merge(flags: Flags): Promise<void> {
+  assertAllowedFlags(
+    flags,
+    [
+      "develop",
+      "main",
+      "release",
+      "hotfix",
+      "current-release",
+      "current-hotfix",
+    ],
+    "merge",
+  );
   if (flags.size === 0) return mergePick();
   const kind = onlyOne(flags, [
     "develop",

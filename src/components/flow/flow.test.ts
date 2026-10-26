@@ -51,6 +51,15 @@ describe("create", () => {
       const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "gith-create-"));
       try {
         const repo = fixture(tmp);
+        const ignored = gith(repo, [
+          "create",
+          "-b",
+          "must-not-create",
+          "--local",
+        ]);
+        expect(ignored.status).toBe(1);
+        expect(ignored.stderr).toContain("not supported by gith create");
+        expect(onOrigin(repo, "develop--must-not-create")).toBe(false);
         expect(gith(repo, ["create", "-b", "login"]).status).toBe(0);
         expect(current(repo)).toBe("main");
         expect(onOrigin(repo, "develop--login")).toBe(true);
@@ -83,6 +92,15 @@ describe("create", () => {
       const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "gith-switch-"));
       try {
         const repo = fixture(tmp);
+        const ignored = gith(repo, [
+          "switch",
+          "-b",
+          "must-not-switch",
+          "--local",
+        ]);
+        expect(ignored.status).toBe(1);
+        expect(ignored.stderr).toContain("not supported by gith switch");
+        expect(current(repo)).toBe("main");
         expect(gith(repo, ["switch", "-b", "fresh"]).status).toBe(0);
         expect(current(repo)).toBe("develop--fresh");
         expect(onOrigin(repo, "develop--fresh")).toBe(true);
@@ -327,6 +345,10 @@ describe("merge --develop", () => {
       git(repo, ["commit", "-m", "work"]);
       git(repo, ["push", "-u", "origin", "work"]);
 
+      const ignored = gith(repo, ["merge", "--local"]);
+      expect(ignored.status).toBe(1);
+      expect(ignored.stderr).toContain("not supported by gith merge");
+      expect(git(repo, ["show", "develop:w.txt"]).status).not.toBe(0);
       const done = gith(repo, ["merge", "--develop", "--yes"]);
       expect(done.status).toBe(0);
       expect(git(repo, ["show", "develop:w.txt"]).status).toBe(0);

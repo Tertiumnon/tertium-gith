@@ -20,8 +20,6 @@ export function parseFlags(argv: string[]): Flags {
       if (hasNext) {
         flags.set(name, next);
         i++;
-      } else if (kind === "optional") {
-        flags.set(name, "");
       } else {
         throw new Error(`${token} needs a value.`);
       }

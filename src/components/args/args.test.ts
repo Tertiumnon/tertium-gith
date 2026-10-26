@@ -15,6 +15,8 @@ describe("value flags: a single dash always takes a value", () => {
     expect(() => parseFlags(["-b"])).toThrow("-b needs a value");
     expect(() => parseFlags(["-b", "--remote"])).toThrow("-b needs a value");
     expect(() => parseFlags(["-limit"])).toThrow("-limit needs a value");
+    expect(() => parseFlags(["-r"])).toThrow("-r needs a value");
+    expect(() => parseFlags(["-h"])).toThrow("-h needs a value");
   });
 
   test("a double dash is an error for a value flag, with the right spelling", () => {
@@ -47,9 +49,8 @@ describe("auto flags: -x <value> is explicit, --x alone picks automatically", ()
       "--release takes no value. For an explicit value use -release <value>.",
     );
     expect(() => parseFlags(["-b"])).toThrow("-b needs a value");
-    expect(parseFlags(["-r"]).get("release")).toBe("");
-    expect(parseFlags(["-r", "--patch"]).get("release")).toBe("");
-    expect(parseFlags(["-h", "--patch"]).get("hotfix")).toBe("");
+    expect(() => parseFlags(["-r", "--patch"])).toThrow("-r needs a value");
+    expect(() => parseFlags(["-h", "--patch"])).toThrow("-h needs a value");
   });
 });
 
