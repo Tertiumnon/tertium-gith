@@ -73,7 +73,7 @@ Clean up branches (every removal shows what it will remove first)
 
 Look at the repo
   gith status                        branch vs origin, and staged, unstaged and untracked counts
-  gith list --commits [--graph] [-l <n>]   newest commits on this branch (default 5)
+  gith list --commits [--graph] [-l <n>]   newest commits on this branch; --graph adds colored lanes, refs, author/date (default 5)
   gith list --tags [-l <n>]          tags with a local and origin column (newest 5 by default)
   gith list --stashes [-l <n>]       stashes, newest first (default 5); --pockets shows them with Gorlum
   gith show ...                      same as gith list
