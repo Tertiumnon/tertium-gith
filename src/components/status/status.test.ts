@@ -70,15 +70,57 @@ describe("status", () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "gith-status-"));
     try {
       const repo = fixture(tmp);
-      expect(gith(repo, ["status"]).stdout).toContain("working tree clean");
+      git(repo, ["branch", "local-only"]);
+      git(repo, ["push", "origin", "main:remote-only"]);
+      git(repo, ["remote", "add", "upstream", "../remote.git"]);
+      git(repo, ["fetch", "upstream"]);
+      const clean = gith(repo, ["status"]);
+      expect(clean.status).toBe(0);
+      expect(clean.stdout).toContain("working tree clean");
+      const [summary, local, remote] = clean.stdout.split(
+        /\n(?:Local branches \(\* current, \+ other worktree\)|Remote branches \(last fetched\)):\n/,
+      );
+      expect(summary).toContain("main  ->  origin/main");
+      expect(local).toContain("* main");
+      expect(local).toContain("develop");
+      expect(local).toContain("local-only");
+      expect(local).not.toContain("remote-only");
+      for (const branch of [
+        "origin/main",
+        "origin/develop",
+        "origin/remote-only",
+        "upstream/main",
+        "upstream/develop",
+        "upstream/remote-only",
+      ])
+        expect(remote).toContain(branch);
 
       fs.writeFileSync(path.join(repo, "a.txt"), "changed");
       fs.writeFileSync(path.join(repo, "new.txt"), "x");
-      expect(gith(repo, ["status"]).stdout).toContain(
-        "unstaged 1, untracked 1",
-      );
+      const dirty = gith(repo, ["status"]).stdout;
+      expect(dirty).toContain("unstaged 1, untracked 1");
+      expect(dirty).toContain("local-only");
+      expect(dirty).toContain("origin/remote-only");
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });
     }
   }, 60_000);
+
+  test("status shows empty branch lists in a new repository without remotes", () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "gith-status-empty-"));
+    try {
+      git(tmp, ["init", "-b", "main"]);
+      const result = gith(tmp, ["status"]);
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain("main  (no upstream)");
+      expect(result.stdout).toContain(
+        "Local branches (* current, + other worktree):\n  (none)",
+      );
+      expect(result.stdout).toContain(
+        "Remote branches (last fetched):\n  (none)",
+      );
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
 });

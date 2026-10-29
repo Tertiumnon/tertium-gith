@@ -38,8 +38,7 @@ export function parseStatus(output: string): Status {
   return status;
 }
 
-// gith status: the branch against origin, and counts of staged, unstaged and untracked files.
-export function status(flags: Flags): void {
+export const status = (flags: Flags): void => {
   if (flags.size > 0) throw new Error("usage: gith status");
   const info = parseStatus(
     captureArgs(["status", "--porcelain=v2", "--branch"]),
@@ -47,13 +46,26 @@ export function status(flags: Flags): void {
   const against = info.upstream
     ? `${info.branch}  ->  ${info.upstream}  ahead ${info.ahead}, behind ${info.behind}`
     : `${info.branch}  (no upstream)`;
-  console.log(against);
+  process.stdout.write(`${against}\n`);
   const changed = info.staged + info.unstaged + info.untracked + info.conflicts;
-  if (changed === 0) {
-    console.log("working tree clean");
-    return;
-  }
-  console.log(
-    `staged ${info.staged}, unstaged ${info.unstaged}, untracked ${info.untracked}, conflicts ${info.conflicts}`,
+  process.stdout.write(
+    changed === 0
+      ? "working tree clean\n"
+      : `staged ${info.staged}, unstaged ${info.unstaged}, untracked ${info.untracked}, conflicts ${info.conflicts}\n`,
   );
-}
+  for (const [heading, scope] of [
+    ["Local branches (* current, + other worktree)", "--list"],
+    ["Remote branches (last fetched)", "--remotes"],
+  ] as const) {
+    const branches = captureArgs(["branch", "--no-color", scope]);
+    process.stdout.write(`\n${heading}:\n`);
+    process.stdout.write(
+      branches.length === 0
+        ? "  (none)\n"
+        : `${branches
+            .split("\n")
+            .map((branch) => `  ${branch.trim()}`)
+            .join("\n")}\n`,
+    );
+  }
+};

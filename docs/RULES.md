@@ -15,6 +15,7 @@ These rules keep `gith` commands predictable, strict, and safe to combine. Follo
 
 - Give each command one clear job and a resource or action name users can remember. Keep `gith help`, the README, and error usage in sync with actual behavior.
 - State defaults explicitly. A command with no arguments should have one documented behavior; use a picker only when the user must choose among multiple valid targets.
+- `status` always includes all local branches and remote-tracking branches from every configured remote, alongside its working-tree summary. Label remote refs as last fetched; do not fetch or change repository state during status.
 - Check for a terminal before opening an interactive picker or asking a question. `--yes` answers confirmation questions; it does not choose a branch from a picker.
 - Make actions and their results clear. Report what was saved, pushed, pulled, or selected, and give a next step when the command stops.
 - Honor `--dry-run` for changes: print the actions and do not perform them. Keep read-only checks and validation useful in dry runs.
@@ -26,6 +27,7 @@ These rules keep `gith` commands predictable, strict, and safe to combine. Follo
 - Do not force-push by default. For remote updates, detect divergence and stop with a clear recovery step; use fast-forward-only pulls when the command promises a pull.
 - Check working-tree cleanliness before commands that could overwrite tracked work. For commands that discard files or delete branches, show what will change and ask before proceeding; `--yes` is the explicit noninteractive confirmation.
 - Preserve local work when a later remote action fails. For example, `save` commits locally and pushes only when the user passes `"--&push"`.
+- `release` runs its Git branch flow without updating package versions by default. Version updates require both `--update-version` and an explicit ecosystem selector: currently `--npm`. Reject either flag alone before changing repository state. Do not infer the ecosystem from files in the repository. Future ecosystem selectors must define their tool and versioning behavior explicitly.
 
 ## Files and references
 

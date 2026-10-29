@@ -60,6 +60,8 @@ describe("switches: a double dash only", () => {
       "patch",
       "minor",
       "major",
+      "update-version",
+      "npm",
       "remote",
       "local",
       "tags",
@@ -75,6 +77,10 @@ describe("switches: a double dash only", () => {
   });
 
   test("a single dash is an error for a switch", () => {
+    for (const name of ["update-version", "npm"]) {
+      expect(() => parseFlags([`-${name}`])).toThrow(`write --${name}`);
+      expect(() => parseFlags([`--${name}`, "true"])).toThrow();
+    }
     expect(() => parseFlags(["-remote"])).toThrow(
       "-remote is a switch; write --remote.",
     );

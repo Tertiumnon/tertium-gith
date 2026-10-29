@@ -15,6 +15,8 @@ export const SPECS = new Map<string, Kind>([
   ["patch", "switch"],
   ["minor", "switch"],
   ["major", "switch"],
+  ["update-version", "switch"],
+  ["npm", "switch"],
   ["remote", "switch"],
   ["local", "switch"],
   ["tags", "switch"],

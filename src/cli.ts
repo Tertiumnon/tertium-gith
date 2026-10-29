@@ -47,7 +47,7 @@ Start and finish work
   gith merge -r <v> | -h <v>         merge into release/<v> or hotfix/<v>
   gith merge --current-release       merge this branch into the newest release (local or origin)
   gith merge --current-hotfix        merge this branch into the newest hotfix (local or origin)
-  gith release --patch | --minor | --major   bump the version and publish
+  gith release --patch | --minor | --major   sync release branches; add --update-version --npm to bump npm version
 
 Fix history
   gith undo                          undo the last commit, keep its changes staged (not if pushed)
@@ -74,7 +74,7 @@ Clean up branches (every removal shows what it will remove first)
   gith rm                            alias of remove
 
 Look at the repo
-  gith status                        branch vs origin, and staged, unstaged and untracked counts
+  gith status                        working-tree summary, all local and remote-tracking branches
   gith list --commits [--graph] [-l <n>]   newest commits on this branch; --graph adds colored lanes, refs, author/date (default 5)
   gith list --tags [-l <n>]          tags with a local and origin column (newest 5 by default)
   gith list --stashes [-l <n>]       stashes, newest first (default 5); --pockets shows them with Gorlum
@@ -107,6 +107,7 @@ Flags: every single-dash flag requires a value; double-dash flags never take one
   -b -r -h -l -m -n -limit -message -name -branch -release -hotfix -commit -file -change -days   take values
   --patch --minor --major --local --remote --obsolete --detached --tags --commits --graph --stashes --pockets --branch --regex
   --develop --main --current-release --current-hotfix --all --&push --all-branches --no-commit --force
+  --update-version --npm             release: opt in to an npm version bump (both required)
   --overall --current-year --current-month --current-week --last-year --last-month --last-week   switches
   --branch lists removable branches; --release / --hotfix choose a version or branch by command context
   -limit caps listings and stat (or -l); -days sets the age for remove --obsolete`;
@@ -205,11 +206,17 @@ try {
       break;
     case "release": {
       const flags = parseFlags(rest);
-      assertAllowedFlags(flags, ["patch", "minor", "major"], "release");
+      assertAllowedFlags(
+        flags,
+        ["patch", "minor", "major", "update-version", "npm"],
+        "release",
+      );
       const kind = onlyOne(flags, ["patch", "minor", "major"]);
       if (!kind)
-        throw new Error("usage: gith release --patch | --minor | --major");
-      release(kind);
+        throw new Error(
+          "usage: gith release --patch | --minor | --major [--update-version --npm]",
+        );
+      release(kind, flags);
       break;
     }
     case "--version":

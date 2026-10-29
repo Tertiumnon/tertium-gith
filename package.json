@@ -19,9 +19,9 @@
     "format:check": "biome format src",
     "typecheck": "tsc --noEmit",
     "prepare": "git config core.hooksPath .githooks || true",
-    "release:patch": "node bin/gith.js release --patch",
-    "release:minor": "node bin/gith.js release --minor",
-    "release:major": "node bin/gith.js release --major",
+    "release:patch": "node bin/gith.js release --patch --update-version --npm",
+    "release:minor": "node bin/gith.js release --minor --update-version --npm",
+    "release:major": "node bin/gith.js release --major --update-version --npm",
     "version": "bun run build && node bin/gith.js changelog --no-commit && git add -- CHANGELOG.md"
   },
   "license": "MIT",

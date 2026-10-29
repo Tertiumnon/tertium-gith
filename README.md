@@ -46,9 +46,9 @@ gith merge --release                # this branch into the only release, or pick
 gith merge -h 1.2.1                 # this branch into hotfix/1.2.1
 gith merge --current-release        # this branch into the newest release/* (local or origin)
 gith merge --current-hotfix         # this branch into the newest hotfix/* (local or origin)
-gith release --patch                # npm version patch, published through main
-gith release --minor                # npm version minor, from develop into main
-gith release --major                # npm version major, from develop into main
+gith release --patch                # sync main into develop without changing package versions
+gith release --minor                # merge develop into main and sync back
+gith release --major --update-version --npm # bump npm major version and release through main
 
 # Fix history
 gith undo                           # undo the last commit, keep its changes staged (not if pushed)
@@ -77,7 +77,7 @@ gith remove --detached              # pick local branches that have no origin co
 gith remove --detached --all        # remove all of them: lists them, then asks Y/n
 
 # Look at the repo
-gith status                         # branch vs origin, and staged, unstaged and untracked counts
+gith status                         # working-tree summary, all local and remote-tracking branches
 gith list --commits                 # the last 5 commits on this branch
 gith list --commits --graph         # the same, as a branch graph
 gith list --commits -l 10           # the last 10 (-limit 10 works too)
@@ -140,6 +140,7 @@ One rule applies to every command: **a single dash always takes a value, and a d
 | `-file <pattern>`, `-change <text>` | value | `find` |
 | `-l <n>`, `-limit <n>` | value, positive whole number | every listing: `list`, `tree`, the picker |
 | `--patch`, `--minor`, `--major` | switch | `release` |
+| `--update-version`, `--npm` | switches, required together for an npm version bump | `release` |
 | `--overall`, `--current-year`, `--current-month`, `--current-week`, `--last-year`, `--last-month`, `--last-week` | switch, one at a time | `stat` |
 | `--local`, `--remote` | switch | `remove` (both sides when neither is given) |
 | `--obsolete`, `--detached` | switch | `remove` |
@@ -162,7 +163,7 @@ Commands that choose between flags (for example `create -b`, `-r` and `-h`, or `
 - **`switch -commit <sha>`** detaches HEAD at that commit so you can look at old code. It refuses a commit that does not exist, and it refuses while tracked files have changes (untracked files do not block it). It lists the files that block it, and points to `gith stash`. On a detached HEAD, `gith switch -b <name>` creates the branch at the current commit, so commits made there stay on it. It does not create or switch branches for other commits, so commits made on a detached HEAD are easy to lose: name a branch before you leave.
 - **`remove -b <branch>`** removes the branch on both sides: the local branch first (with `git branch -d`, so git refuses to delete an unmerged branch), then the origin branch. A side that does not exist is skipped, so a branch that lives only here is still removed. A name that exists in neither place is an error. `--local` touches only this clone; `--remote` touches only origin. Containers (`develop`, `main`, `release/*`, `hotfix/*`) are refused.
 - **`remove`** with no name opens the list of branches and asks which to remove, the same as `remove --branch`. By default it lists branch pairs, meaning branches that exist both here and on origin. `--local` lists local branches and `--remote` lists origin branches. Each choice is removed on the same sides as above. `-limit <n>` shows only the first `n` (all by default), and the picker numbers only those. Pick with the arrow keys: up and down move, space checks an item, enter confirms the checked items, and esc cancels. `switch` takes one item with enter. The list needs a terminal, and that is checked before anything is listed. The checked-out branch and containers are never listed. Choosing items is the confirmation, so nothing else is asked. If a delete fails (for example, an unmerged branch), the removal stops there and earlier picks stay deleted.
-- **`status`** prints the branch and how far it is ahead of or behind its origin branch, then counts staged, unstaged, untracked and conflicting files. It changes nothing.
+- **`status`** prints the current branch and how far it is ahead of or behind its upstream, then counts staged, unstaged, untracked and conflicting files. It also lists all local branches (`*` marks the current branch; `+` marks branches in other worktrees) and remote-tracking branches from every configured remote. Remote branches reflect the last fetch; run `git fetch --all --prune` to refresh them. Empty lists are shown explicitly. Status changes nothing and does not contact remotes.
 - **`update`** fetches `origin/develop` and merges it into the current work branch. It needs a clean working tree and refuses containers. If the merge conflicts, it aborts the merge and says so. It does not push.
 - **`undo`** runs `git reset --soft HEAD~1`: the last commit is removed and its changes stay staged. It refuses when HEAD is already on origin, because undoing a pushed commit needs a force-push.
 - **`push` / `pull`** work with the current branch and its same-named branch on origin. They report fresh ahead/behind counts and stop with instructions when histories diverge. Push sets upstream tracking and publishes missing branches; it never force-pushes. Pull requires clean tracked files, fast-forwards only, and points to `gith push` when local commits remain. `--all-branches` applies to every local branch, preflighting all before updating any. Push sends them atomically (origin must support atomic pushes); pull requires each to exist on origin and updates branches without switching. Branches checked out in other worktrees cannot be updated by pull. Remote-only branches are not created. Pull may leave earlier branches updated if a later Git operation fails; it never rolls back successful fast-forwards. Dry runs print actions without fetching or changing refs.
@@ -209,10 +210,12 @@ Containers (`develop`, `main`, `release/*`, `hotfix/*`) can't be merged from, an
 
 Run as `gith release --patch`, `--minor` or `--major`.
 
-- **`patch`** runs from `main`: bumps the version, pushes with tags, then rebases `develop` onto `main`. The push back to `develop` uses `--force-with-lease`, so it refuses to overwrite a `develop` that moved on origin.
-- **`minor` and `major`** run from `develop`: bump the version with its changelog entry, push with tags, merge `develop` into `main`, then bring `main` back to `develop`.
+- **`patch`** runs from `main`: pushes with tags, then rebases `develop` onto `main`. The push back to `develop` uses `--force-with-lease`, so it refuses to overwrite a `develop` that moved on origin.
+- **`minor` and `major`** run from `develop`: push with tags, merge `develop` into `main`, then bring `main` back to `develop`.
 
-Both need a clean working tree and a `package.json` with a version, because they call `npm version`.
+Both need a clean working tree. By default, they perform only the Git flow: no package manager runs, no package files change, and no new version tag is created. Existing annotated tags reachable from pushed commits can still be pushed.
+
+Add **both `--update-version --npm`** to run `npm version` with the selected patch, minor, or major bump before pushing. This requires npm and a `package.json` with a version; npm lifecycle scripts run as usual. Either flag alone is an error. npm is currently the only supported versioning tool. This repository's `release:patch`, `release:minor`, and `release:major` scripts pass both flags explicitly.
 
 Pushing a `v*` tag publishes the package and creates a GitHub Release with generated notes.
 

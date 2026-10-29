@@ -1,25 +1,32 @@
+import type { Flags } from "../args/args.types";
 import { assertCleanTree, assertSynced, capture, git } from "../git/git";
 import { KINDS } from "./release.constants";
 import type { ReleaseKind } from "./release.types";
 import { npmVersion } from "./release.utils";
 
 // Publishes a version. Patch goes from main (hotfix-style), minor and major from develop.
-export function release(kind: string | undefined): void {
+export const release = (kind: string | undefined, flags: Flags): void => {
   if (!kind || !KINDS.includes(kind))
-    throw new Error("usage: gith release <patch|minor|major>");
+    throw new Error(
+      "usage: gith release --patch | --minor | --major [--update-version --npm]",
+    );
+  if (flags.has("update-version") !== flags.has("npm"))
+    throw new Error(
+      "Version updates require both --update-version and --npm; pass both flags or omit both.",
+    );
   assertCleanTree();
   if (kind === "patch") {
-    releasePatch();
+    releasePatch(flags.has("update-version"));
   } else {
-    releaseFromDevelop(kind as ReleaseKind);
+    releaseFromDevelop(kind as ReleaseKind, flags.has("update-version"));
   }
-}
+};
 
-function releasePatch(): void {
+const releasePatch = (shouldUpdateVersion: boolean): void => {
   console.log("\n📋 Starting patch release from main...\n");
   git("checkout main");
   git("pull");
-  npmVersion("patch");
+  if (shouldUpdateVersion) npmVersion("patch");
   // Only the tags on the commits being pushed - `--tags` would push every local tag.
   git("push --follow-tags");
   git("checkout develop");
@@ -31,15 +38,18 @@ function releasePatch(): void {
   git("checkout main");
   assertSynced(["main", "develop"]);
   console.log("\n✅ Patch release complete!\n");
-}
+};
 
-function releaseFromDevelop(kind: ReleaseKind): void {
+const releaseFromDevelop = (
+  kind: ReleaseKind,
+  shouldUpdateVersion: boolean,
+): void => {
   console.log(`\n📋 Starting ${kind} release from develop...\n`);
   const current = capture("rev-parse --abbrev-ref HEAD");
   if (current !== "develop")
     throw new Error(`must be on 'develop', currently on '${current}'.`);
   git("pull");
-  npmVersion(kind);
+  if (shouldUpdateVersion) npmVersion(kind);
   git("push --follow-tags");
   git("checkout main");
   git("pull");
@@ -50,4 +60,4 @@ function releaseFromDevelop(kind: ReleaseKind): void {
   git("push");
   assertSynced(["main", "develop"]);
   console.log(`\n✅ ${kind} release complete!\n`);
-}
+};
