@@ -1,4 +1,23 @@
-import { captureArgs, gitArgs, hasOnOrigin, listTags } from "../git/git";
+import { spawnSync } from "node:child_process";
+import {
+  existsSync,
+  mkdtempSync,
+  realpathSync,
+  symlinkSync,
+  unlinkSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { parsePackageVersion } from "../changelog/changelog.utils";
+import {
+  assertBranchName,
+  captureArgs,
+  gitArgs,
+  hasLocal,
+  hasOnOrigin,
+  isDryRun,
+  listTags,
+} from "../git/git";
 import { containerBase, containerName } from "../rules/rules";
 import type { ContainerKind } from "../rules/rules.types";
 import { compare, nextVersion, parseSemver } from "../versions/versions";
@@ -53,11 +72,80 @@ export function nextContainerVersion(kind: ContainerKind): string {
 }
 
 // Creates release/<version> from develop, or hotfix/<version> from main, without switching.
-export function open(kind: ContainerKind, version: string): void {
+export const open = (
+  kind: ContainerKind,
+  version: string,
+  shouldUpdateVersion: boolean,
+): void => {
+  if (shouldUpdateVersion && !/^\d+\.\d+\.\d+$/.test(version))
+    throw new Error(
+      "npm version updates require a version in X.Y.Z format; use -r or -h with that version.",
+    );
   const name = containerName(kind, version);
+  assertBranchName(name);
+  if (hasLocal(name)) throw new Error(`'${name}' already exists locally.`);
   if (hasOnOrigin(name)) throw new Error(`'${name}' already exists on origin.`);
   const base = containerBase(kind);
   gitArgs(["fetch", "origin", base]);
+  const needsVersionUpdate =
+    shouldUpdateVersion &&
+    parsePackageVersion(
+      captureArgs(["show", `origin/${base}:package.json`]),
+    ) !== version;
   gitArgs(["branch", name, `origin/${base}`]);
+  if (needsVersionUpdate) updateContainerVersion(name, version);
   gitArgs(["push", "-u", "origin", name]);
-}
+};
+
+const updateContainerVersion = (name: string, version: string): void => {
+  if (isDryRun()) {
+    process.stdout.write(
+      `> npm version ${version} --no-git-tag-version --ignore-scripts (temporary worktree for ${name})\n`,
+    );
+    return;
+  }
+  const cwd = mkdtempSync(path.join(tmpdir(), "gith-version-"));
+  gitArgs(["worktree", "add", cwd, name]);
+  const hasDependencies = existsSync("node_modules");
+  if (hasDependencies)
+    symlinkSync(
+      realpathSync("node_modules"),
+      path.join(cwd, "node_modules"),
+      "junction",
+    );
+  try {
+    commitContainerVersion(cwd, version);
+  } finally {
+    // Git's worktree cleanup can traverse Windows junctions and delete shared dependencies.
+    if (hasDependencies) unlinkSync(path.join(cwd, "node_modules"));
+  }
+  gitArgs(["worktree", "remove", cwd]);
+};
+
+const commitContainerVersion = (cwd: string, version: string): void => {
+  const result = spawnSync(
+    "npm",
+    ["version", version, "--no-git-tag-version", "--ignore-scripts"],
+    {
+      cwd,
+      stdio: "inherit",
+      shell: process.platform === "win32",
+    },
+  );
+  if (result.error || result.status !== 0)
+    throw new Error(
+      `npm version failed; inspect the preserved worktree at ${cwd} and retry.`,
+      { cause: result.error },
+    );
+  gitArgs(
+    [
+      "add",
+      "--",
+      ...["package.json", "package-lock.json", "npm-shrinkwrap.json"].filter(
+        (file) => existsSync(path.join(cwd, file)),
+      ),
+    ],
+    { cwd },
+  );
+  gitArgs(["commit", "-m", version], { cwd });
+};

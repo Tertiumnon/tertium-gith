@@ -29,21 +29,33 @@ import {
 
 // gith create -b <branch> | -r <version> | -h <version> | --release | --hotfix
 // Creates the branch and pushes it, but never switches: the current branch stays checked out.
-export function create(flags: Flags): void {
-  assertAllowedFlags(flags, ["branch", "release", "hotfix"], "create");
+export const create = (flags: Flags): void => {
+  assertAllowedFlags(
+    flags,
+    ["branch", "release", "hotfix", "update-version", "npm"],
+    "create",
+  );
+  if (flags.has("update-version") !== flags.has("npm"))
+    throw new Error(
+      "Version updates require both --update-version and --npm; pass both flags or omit both.",
+    );
   const kind = onlyOne(flags, ["branch", "release", "hotfix"]);
   if (!kind)
     throw new Error(
-      "usage: gith create -b <branch> | -r <version> | -h <version> | --release | --hotfix",
+      "usage: gith create -b <branch> | (-r <version> | -h <version> | --release | --hotfix) [--update-version --npm]",
     );
   const value = flags.get(kind) ?? "";
   if (kind === "branch") {
+    if (flags.has("update-version"))
+      throw new Error(
+        "--update-version --npm only applies to release or hotfix branch creation.",
+      );
     if (!value) throw new Error("usage: gith create -b <branch>");
     createBranch(value);
     return;
   }
-  open(kind, value || nextContainerVersion(kind));
-}
+  open(kind, value || nextContainerVersion(kind), flags.has("update-version"));
+};
 
 // gith merge [-r <version> | -h <version>]: merges this branch into develop by default.
 // gith merge --main: merges this branch into main. Without flags, asks which branch to merge and

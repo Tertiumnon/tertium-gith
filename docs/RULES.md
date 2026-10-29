@@ -29,6 +29,7 @@ These rules keep `gith` commands predictable, strict, and safe to combine. Follo
 - Check working-tree cleanliness before commands that could overwrite tracked work. For commands that discard files or delete branches, show what will change and ask before proceeding; `--yes` is the explicit noninteractive confirmation.
 - Preserve local work when a later remote action fails. For example, `save` commits locally and pushes only when the user passes `"--&push"`.
 - `release` runs its Git branch flow without updating package versions by default. Version updates require both `--update-version` and an explicit ecosystem selector: currently `--npm`. Reject either flag alone before changing repository state. Do not infer the ecosystem from files in the repository. Future ecosystem selectors must define their tool and versioning behavior explicitly.
+- `create -r/-h/--release/--hotfix` accepts the same pair `--update-version --npm` to align the new branch's npm version before pushing. Reject these flags for work branches. Preserve the checked-out branch and local changes, commit npm manifests and lockfiles only on the new branch, and create no tag or lifecycle-script side effects. Keep the worktree for inspection if npm or committing fails.
 
 ## Files and references
 

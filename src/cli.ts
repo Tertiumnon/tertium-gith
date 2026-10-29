@@ -34,6 +34,7 @@ Start and finish work
   gith create -r <version>           release/<version> from develop
   gith create -h <version>           hotfix/<version> from main
   gith create --release | --hotfix   next version from the latest tag
+  gith create -r <version> --update-version --npm   also commit npm version on the new branch; works with -h, --release, --hotfix
   gith switch                        list local and origin branches, and switch to the one picked
   gith switch -b <branch>            switch to a branch, creating develop--<branch> from develop if missing (on a detached HEAD: <branch> from that commit)
   gith switch -commit <sha>          detach HEAD at a commit, to look at it (tracked files must be clean)
@@ -107,7 +108,7 @@ Flags: every single-dash flag requires a value; double-dash flags never take one
   -b -r -h -l -m -n -limit -message -name -branch -release -hotfix -commit -file -change -days   take values
   --patch --minor --major --local --remote --obsolete --detached --tags --commits --graph --stashes --pockets --branch --regex
   --develop --main --current-release --current-hotfix --all --&push --all-branches --no-commit --force
-  --update-version --npm             release: opt in to an npm version bump (both required)
+  --update-version --npm             release or create release/hotfix: opt in to npm version updates (both required)
   --overall --current-year --current-month --current-week --last-year --last-month --last-week   switches
   --branch lists removable branches; --release / --hotfix choose a version or branch by command context
   -limit caps listings and stat (or -l); -days sets the age for remove --obsolete`;

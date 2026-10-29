@@ -37,6 +37,8 @@ gith create -r 1.2.0                # release/1.2.0 from develop
 gith create -h 1.2.1                # hotfix/1.2.1 from main
 gith create --release               # next release version from the latest tag
 gith create --hotfix                # next hotfix version from the latest tag
+gith create -r 1.2.0 --update-version --npm # also set npm version to 1.2.0 on the new release branch
+gith create --hotfix --update-version --npm # same for an automatically selected hotfix version
 gith switch                         # list local and origin branches, and switch to the one you pick
 gith switch -b login-redirect       # switch to develop--login-redirect, creating it from develop if it is missing
 gith switch -commit 3f2a1b9         # detach HEAD at that commit, to look at old code
@@ -147,7 +149,7 @@ One rule applies to every command: **a single dash always takes a value, and a d
 | `-file <pattern>`, `-change <text>` | value | `find` |
 | `-l <n>`, `-limit <n>` | value, positive whole number | every listing: `list`, `tree`, the picker |
 | `--patch`, `--minor`, `--major` | switch | `release` |
-| `--update-version`, `--npm` | switches, required together for an npm version bump | `release` |
+| `--update-version`, `--npm` | switches, required together for npm version updates | `release`, `create` with `-r`/`-h`/`--release`/`--hotfix` |
 | `--overall`, `--current-year`, `--current-month`, `--current-week`, `--last-year`, `--last-month`, `--last-week` | switch, one at a time | `stat` |
 | `--local`, `--remote` | switch | `remove` (both sides when neither is given) |
 | `--obsolete`, `--detached` | switch | `remove` |
@@ -205,6 +207,7 @@ Commands that choose between flags (for example `create -b`, `-r` and `-h`, or `
 
 - **`create -b`** creates `develop--<name>` from `origin/develop`, pushes it with upstream tracking, and leaves the current branch checked out. The prefix shows the source branch; `create -b develop` and `create -b main` are refused. It does not touch the working tree, so it works with uncommitted changes.
 - **`create -r` / `create -h`** creates a container from its base (`develop` for release, `main` for hotfix), refusing names that already exist on origin. Like `create -b`, it does not switch.
+- **`create -r/-h/--release/--hotfix --update-version --npm`** also sets npm's version to the branch version and commits `package.json` and any npm lockfiles on that new branch before pushing. Both flags are required together and are rejected for work branches. This uses a temporary worktree, leaves your checked-out branch and local changes intact, and creates no version tag. npm lifecycle scripts are skipped; changelog preparation remains part of finishing the release. An already matching package version needs no commit. Without both flags, creation does not run npm or change package versions. The selected base must contain a `package.json` with a version. If npm or the commit fails, the new branch and temporary worktree remain available for inspection and are not pushed.
 - **With `--release` or `--hotfix` (no value)**, the version is worked out from the highest `vX.Y.Z` tag across local tags and origin: `-r` takes the next minor (`1.2.1` → `1.3.0`), `-h` takes the next patch (`1.2.1` → `1.2.2`). With no tags yet, the first release is `0.1.0` and the first hotfix `0.0.1`. The version is printed before the branch is created.
 - **`merge --current-release`** and **`--current-hotfix`** pick the newest `release/*` or `hotfix/*` branch by version (numbers compare as numbers, so `1.10.0` beats `1.9.0`), checking both local branches and origin, and merge into it. The target must exist on origin, because the merge pushes it; a newest branch that only exists here stops the command with a message.
 - **`finish --current-release`** (and `--current-hotfix`) releases the newest `release/*` (or `hotfix/*`), named by its version X.Y.Z. It makes `package.json`'s version match the name (committed as `X.Y.Z`, only when they differ), adds the changelog entry as its own commit (when it is missing), merges the branch into `main` with `--no-ff`, tags `vX.Y.Z` and pushes, merges `main` into `develop` when `develop` exists on origin, and then asks before deleting the branch. A conflict aborts the merge and stops. Projects without a `package.json` keep their version by hand.

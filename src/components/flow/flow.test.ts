@@ -46,6 +46,126 @@ describe("create", () => {
     return repo;
   }
 
+  test.each([
+    { args: ["-r", "1.1.0"], branch: "release/1.1.0", version: "1.1.0" },
+    { args: ["-r", "1.2.0"], branch: "release/1.2.0", version: "1.2.0" },
+    { args: ["-h", "1.2.1"], branch: "hotfix/1.2.1", version: "1.2.1" },
+    { args: ["--release"], branch: "release/1.2.0", version: "1.2.0" },
+    { args: ["--hotfix"], branch: "hotfix/1.1.1", version: "1.1.1" },
+  ])(
+    "create $branch updates npm files only on the new branch",
+    ({ args, branch, version }) => {
+      const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "gith-create-npm-"));
+      try {
+        const repo = fixture(tmp);
+        fs.writeFileSync(
+          path.join(repo, "package.json"),
+          JSON.stringify({
+            name: "test-package",
+            version: "1.1.0",
+            scripts: { version: "exit 1" },
+          }),
+        );
+        fs.writeFileSync(
+          path.join(repo, "package-lock.json"),
+          JSON.stringify({
+            name: "test-package",
+            version: "1.1.0",
+            lockfileVersion: 3,
+            packages: { "": { name: "test-package", version: "1.1.0" } },
+          }),
+        );
+        git(repo, ["add", "."]);
+        fs.writeFileSync(path.join(repo, ".gitignore"), "node_modules/\n");
+        git(repo, ["add", ".gitignore"]);
+        git(repo, ["commit", "-m", "npm package"]);
+        git(repo, ["tag", "v1.1.0"]);
+        git(repo, ["push", "origin", "main"]);
+        git(repo, ["branch", "-f", "develop", "main"]);
+        git(repo, ["push", "origin", "develop"]);
+        fs.mkdirSync(path.join(repo, "node_modules"));
+        fs.writeFileSync(
+          path.join(repo, "node_modules", "hook-dependency"),
+          "available",
+        );
+        fs.writeFileSync(
+          path.join(repo, ".git", "hooks", "pre-commit"),
+          "#!/bin/sh\ntest -f node_modules/hook-dependency\n",
+          { mode: 0o755 },
+        );
+        fs.writeFileSync(path.join(repo, "a.txt"), "unsaved work");
+        const options = ["create", ...args, "--update-version", "--npm"];
+        const preview = gith(repo, [...options, "--dry-run"]);
+        expect(preview.status).toBe(0);
+        expect(preview.stdout.includes(`npm version ${version}`)).toBe(
+          version !== "1.1.0",
+        );
+        expect(onOrigin(repo, branch)).toBe(false);
+        expect(git(repo, ["branch", "--list", branch]).stdout.trim()).toBe("");
+        const result = gith(repo, options);
+        expect(result.status).toBe(0);
+        expect(current(repo)).toBe("main");
+        expect(
+          fs.readFileSync(
+            path.join(repo, "node_modules", "hook-dependency"),
+            "utf8",
+          ),
+        ).toBe("available");
+        expect(onOrigin(repo, branch)).toBe(true);
+        for (const file of ["package.json", "package-lock.json"])
+          expect(
+            JSON.parse(git(repo, ["show", `${branch}:${file}`]).stdout).version,
+          ).toBe(version);
+        expect(
+          JSON.parse(git(repo, ["show", "HEAD:package.json"]).stdout).version,
+        ).toBe("1.1.0");
+        expect(fs.readFileSync(path.join(repo, "a.txt"), "utf8")).toBe(
+          "unsaved work",
+        );
+        expect(git(repo, ["tag", "--list"]).stdout.trim()).toBe("v1.1.0");
+        expect(
+          git(repo, ["worktree", "list", "--porcelain"]).stdout.match(
+            /^worktree /gm,
+          ),
+        ).toHaveLength(1);
+      } finally {
+        fs.rmSync(tmp, { recursive: true, force: true });
+      }
+    },
+    60_000,
+  );
+
+  test("create rejects incomplete npm flags, work branches, invalid versions, and missing package manifests", () => {
+    const tmp = fs.mkdtempSync(
+      path.join(os.tmpdir(), "gith-create-invalid-npm-"),
+    );
+    try {
+      const repo = fixture(tmp);
+      for (const flag of ["--update-version", "--npm"])
+        expect(gith(repo, ["create", "-r", "1.2.0", flag]).stderr).toContain(
+          "require both",
+        );
+      expect(
+        gith(repo, ["create", "-b", "work", "--update-version", "--npm"])
+          .stderr,
+      ).toContain("only applies to release or hotfix");
+      expect(
+        gith(repo, ["create", "-r", "1.2.0;bad", "--update-version", "--npm"])
+          .stderr,
+      ).toContain("X.Y.Z");
+      expect(
+        gith(repo, ["create", "-r", "1.2.0", "--update-version", "--npm"])
+          .status,
+      ).toBe(1);
+      expect(onOrigin(repo, "release/1.2.0")).toBe(false);
+      expect(
+        git(repo, ["branch", "--list", "release/1.2.0"]).stdout.trim(),
+      ).toBe("");
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  }, 60_000);
+
   describe("gith create never switches; gith switch -b creates or switches", () => {
     test("create -b and create -r/-h leave the current branch checked out", () => {
       const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "gith-create-"));
