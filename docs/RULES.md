@@ -18,6 +18,7 @@ These rules keep `gith` commands predictable, strict, and safe to combine. Follo
 - `status` always includes all local branches and remote-tracking branches from every configured remote, alongside its working-tree summary. Label remote refs as last fetched; do not fetch or change repository state during status.
 - Check for a terminal before opening an interactive picker or asking a question. `--yes` answers confirmation questions; it does not choose a branch from a picker.
 - Make actions and their results clear. Report what was saved, pushed, pulled, or selected, and give a next step when the command stops.
+- Use the shared `MASCOT` from `version.constants.ts` for terminal mascot displays. Keep its three commit sprouts, two-eyed head, and stick body consistent with `assets/gith-icon.svg`, its PNG rendering, and the README.
 - Honor `--dry-run` for changes: print the actions and do not perform them. Keep read-only checks and validation useful in dry runs.
 
 ## Git and safety

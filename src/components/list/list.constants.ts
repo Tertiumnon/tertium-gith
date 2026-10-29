@@ -10,12 +10,3 @@ export const GRAPH_ARGS = [
   "--date=format:%Y-%m-%d %H:%M",
   "--format=%C(bold yellow)%h%C(reset)  %C(bold)%s%C(reset) %C(auto)%d%C(reset)%n%C(dim)   └─ %an · %ad%C(reset)%n",
 ];
-
-// Gorlum guards his pockets. --pockets shows the stashes with him.
-export const GORLUM = [
-  '      .-"""-.',
-  "     /  o o  \\",
-  "    |   ___   |   my precious pockets!",
-  "     \\ (___) /",
-  "      '-._.-'",
-];

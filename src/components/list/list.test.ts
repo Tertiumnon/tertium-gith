@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { MASCOT } from "../version/version.constants";
 import { tagPairs } from "./list";
 
 describe("list", () => {
@@ -252,7 +253,7 @@ describe("show", () => {
   }
 
   describe("gith show and --pockets", () => {
-    test("show is list, and --pockets lists stashes with Gorlum", () => {
+    test("show is list, and --pockets lists stashes with the shared gith mascot", () => {
       const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "gith-show-"));
       try {
         const repo = path.join(tmp, "repo");
@@ -274,6 +275,7 @@ describe("show", () => {
         const pockets = gith(repo, ["show", "--pockets"]);
         expect(pockets.status).toBe(0);
         expect(pockets.stdout).toContain("my precious pockets!");
+        expect(pockets.stdout).toContain(MASCOT.join("\n"));
         expect(pockets.stdout).toContain("gold-ring");
         expect(gith(repo, ["list", "--pockets", "--stashes"]).status).toBe(1);
       } finally {

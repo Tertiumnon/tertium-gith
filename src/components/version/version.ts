@@ -13,7 +13,18 @@ export function readVersion(): string {
 // gith --version: the mascot with the version and a git joke beside it.
 export function versionText(): string {
   const version = readVersion();
-  const side = ["", "", "", "", "", `gith v${version}`, "git happens.", ""];
+  const side = [
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    `gith v${version}`,
+    "git happens.",
+  ];
   return MASCOT.map((line, i) =>
     `${line.padEnd(16)}${side[i] ?? ""}`.trimEnd(),
   ).join("\n");

@@ -77,7 +77,7 @@ Look at the repo
   gith status                        working-tree summary, all local and remote-tracking branches
   gith list --commits [--graph] [-l <n>]   newest commits on this branch; --graph adds colored lanes, refs, author/date (default 5)
   gith list --tags [-l <n>]          tags with a local and origin column (newest 5 by default)
-  gith list --stashes [-l <n>]       stashes, newest first (default 5); --pockets shows them with Gorlum
+  gith list --stashes [-l <n>]       stashes, newest first (default 5); --pockets shows them with the gith mascot
   gith show ...                      same as gith list
   gith tree [-l <n>]                 working trees: path, branch, HEAD (current marked *)
   gith find|search [-commit <text>] [-file <pattern>] [-change <text>] [--regex] [-limit <n>]

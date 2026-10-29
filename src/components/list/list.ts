@@ -2,8 +2,9 @@ import { onlyOne, parseLimit } from "../args/args";
 import type { Flags } from "../args/args.types";
 import { assertAllowedFlags } from "../args/args.utils";
 import { captureArgs } from "../git/git";
+import { MASCOT } from "../version/version.constants";
 import { compare, parseSemver } from "../versions/versions";
-import { DEFAULT_LIMIT, GORLUM } from "./list.constants";
+import { DEFAULT_LIMIT } from "./list.constants";
 import type { TagPair } from "./list.types";
 import { commits, yesNo } from "./list.utils";
 
@@ -52,8 +53,9 @@ function localTags(): string[] {
 }
 
 // Newest first. Each row is the stash selector, its date, and git's description of it.
-function stashes(limit: number, withGorlum: boolean): void {
-  if (withGorlum) console.log(GORLUM.join("\n"));
+const stashes = (limit: number, withMascot: boolean): void => {
+  if (withMascot)
+    process.stdout.write(`${MASCOT.join("\n")}\nmy precious pockets!\n`);
   const rows = captureArgs([
     "stash",
     "list",
@@ -63,7 +65,9 @@ function stashes(limit: number, withGorlum: boolean): void {
     .split("\n")
     .filter(Boolean);
   if (rows.length === 0) {
-    console.log(withGorlum ? "There is nothing in my pockets!" : "No stashes.");
+    process.stdout.write(
+      withMascot ? "There is nothing in my pockets!\n" : "No stashes.\n",
+    );
     return;
   }
   const shown = rows.slice(0, limit);
@@ -73,7 +77,7 @@ function stashes(limit: number, withGorlum: boolean): void {
       `showing ${shown.length} of ${rows.length}; -limit <n> shows more`,
     );
   }
-}
+};
 
 // One row per tag, newest version first, with whether it exists locally and on origin.
 function tags(limit: number): void {

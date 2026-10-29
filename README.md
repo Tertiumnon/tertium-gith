@@ -1,16 +1,23 @@
 # @tertium/gith
 
+<img src="assets/gith-icon.svg" alt="gith mascot with three commit sprouts" width="128" />
+
 gith: git-only branch flow CLI (goal branches, release/hotfix containers, synced merges).
 
 ```
-          o
-         /
-   o----o----o
+        o
+   o    |    o
     \   |   /
      \  |  /
-      (o_o)     gith v0.1.0
-      /|_|\     git happens.
-       d b
+      \ | /
+       \|/
+        |
+      .---.
+     ( o o )    gith
+      '---'     git happens.
+        |
+       /|\
+       / \
 ```
 
 Git helper: the branch flow from [git-convention](https://github.com/Tertiumnon/git-convention) (work branches named develop--<goal>, `release/*` and `hotfix/*` containers, merges that sync both sides with origin), plus everyday git commands: status, switch, update, undo, save, squash, stash, remove, list, tree, push, pull, sync, clean, reset, open, doctor and stat. Any command takes `--dry-run` to show the git commands it would run. No dependencies beyond git and [Bun](https://bun.com).
@@ -84,7 +91,7 @@ gith list --commits -l 10           # the last 10 (-limit 10 works too)
 gith list --tags                    # the newest 5 tags with a LOCAL and ORIGIN column
 gith list --tags -l 20              # the newest 20
 gith list --stashes                 # the newest 5 stashes (-l for more)
-gith show --pockets                 # the same, with Gorlum: my precious pockets!
+gith show --pockets                 # the same, with the gith mascot: my precious pockets!
 gith find -commit "login" -limit 10  # commits whose message mentions login (search is the same; default 5)
 gith search -file "*api.ts" -limit 3 # commits that changed a matching file, with the files listed
 gith find -change "TODO"           # commits that added or removed the text in their diff
@@ -174,7 +181,7 @@ Commands that choose between flags (for example `create -b`, `-r` and `-h`, or `
   - `-file <pattern>` matches the paths changed by the commit, using git's pattern rules (`*api.ts` matches `src/api.ts`). Each commit lists the matching files it changed.
   - `-change <text>` matches commits whose diff adds or removes the text (`git log -S`). With `--regex`, it matches a regular expression against the diff (`git log -G`).
   - `-limit <n>` sets how many to show (default 5). The filters combine with AND.
-- **`show`** is a synonym for `list`: `gith show --tags` and `gith list --tags` do the same. `--pockets` is a fun name for `--stashes`, and it prints a Gorlum figure above the list.
+- **`show`** is a synonym for `list`: `gith show --tags` and `gith list --tags` do the same. `--pockets` is a fun name for `--stashes`, and it prints the gith mascot above the list, matching `gith --version` and the SVG/PNG logo in `assets/`.
 - **`list --stashes`** shows the stashes, newest first, with their date and description. Like the other listings, it shows 5 by default, and `-limit` changes that.
 - **`squash -limit <n>`** combines the last `n` commits on the current work branch into one, using `reset --soft` and a single commit. Without `-m` the result keeps the oldest of the combined commits, its message and author. It refuses when `n` is below 2, when `n` would reach the first commit, when a merge is among them, when any of them is already on origin, on a container, or with a dirty working tree.
 - **`stat`** reads the history of the current branch and prints a table of facts: commit count, top author, the biggest commit (lines added and removed), average size, the most changed file, the busiest day, weekday and hour, the longest streak of days with a commit, night owl and weekend commits, and the conventional commit types. The period is one switch: `--overall` (the default), `--current-year`, `--current-month`, `--current-week` (weeks start on Monday), or the matching `--last-` switch for the previous year, month or week. `-limit <n>` looks only at the last `n` commits. Stat changes nothing.
