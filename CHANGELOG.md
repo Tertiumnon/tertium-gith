@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.0 - 2026-10-29
+
+- feat: opt in to npm version updates when creating release branches
+- fix: unify terminal mascot with gith logo
+- feat: make release version updates explicit and list branches in status
+- docs: add user-facing release notes
+- fix: sync develop after minor release
+- chore(project): update project.yml to the project convention
+
 ## 0.4.0 - 2026-10-26
 
 ### Highlights

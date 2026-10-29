@@ -1,6 +1,6 @@
 {
   "name": "@tertium/gith",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Git helper: branch flow with goal branches, release and hotfix containers, and everyday git commands.",
   "type": "module",
   "bin": {
